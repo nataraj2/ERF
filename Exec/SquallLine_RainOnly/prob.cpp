@@ -11,54 +11,41 @@ using namespace amrex;
 
 ProbParm parms;
 
-double p0 = 1e5;
-double T0 = 300.0;
-double Cp = 1004.0;
-double Rd = 287.05;
-double Rv = 461.50;
+Real z_tr = 12000.0;
+Real height = 1200.0;
 
-double zmin = 0.0;
-double zmax = 12800.0;
-int nz = 64;
+Real R_v_by_R_d = R_v/R_d;
 
-double z_tr = 12000.0;
-double g = 9.81;
-
-double height = 1200.0;
-
-double delz = (zmax-zmin)/nz;
-double Rv_by_Rd = Rv/Rd;
-
-double compute_theta(double z)
+Real compute_theta(Real z)
 {
-    double theta_0=300.0, theta_tr=343.0, T_tr=213.0;
+    Real theta_0=300.0, theta_tr=343.0, T_tr=213.0;
     if(z <= z_tr){
         return theta_0 + (theta_tr - theta_0)*std::pow(z/z_tr,1.25);
     }
     else{
-        return theta_tr*exp(g/(Cp*T_tr)*(z - z_tr));
+        return theta_tr*exp(CONST_GRAV/(Cp_d*T_tr)*(z - z_tr));
     }
 
 }
 
-double compute_saturation_pressure(const double T_b)
+Real compute_saturation_pressure(const Real T_b)
 {
 
-    double p_s = exp(34.494 - 4924.99/(T_b - 273.15 + 237.1))/std::pow(T_b - 273.15 + 105.0,1.57);
+    Real p_s = exp(34.494 - 4924.99/(T_b - 273.15 + 237.1))/std::pow(T_b - 273.15 + 105.0,1.57);
 
-    double T = T_b - 273.15;
+    Real T = T_b - 273.15;
 
-    //double p_s = 0.61121e3*exp((18.678 - T/234.5)*(T/(257.14 + T)));
+    //Real p_s = 0.61121e3*exp((18.678 - T/234.5)*(T/(257.14 + T)));
 
     return p_s;
 }
 
 
-double compute_relative_humidity(double z, double p_b, double T_b)
+Real compute_relative_humidity(Real z, Real p_b, Real T_b)
 {
-    double p_s = compute_saturation_pressure(T_b);
+    Real p_s = compute_saturation_pressure(T_b);
 
-    double q_s = 0.622*p_s/(p_b - p_s);
+    Real q_s = 0.622*p_s/(p_b - p_s);
 
     if(z <= height){
         return 0.014/q_s;
@@ -71,21 +58,19 @@ double compute_relative_humidity(double z, double p_b, double T_b)
     }
 }
 
-double compute_vapor_pressure(double p_s, double RH)
+Real compute_vapor_pressure(Real p_s, Real RH)
 {
 
     return p_s*RH;
 }
 
 
-double vapor_mixing_ratio(const double z, const double p_b, const double T_b, const double RH){
+Real vapor_mixing_ratio(const Real z, const Real p_b, const Real T_b, const Real RH){
 
-    double p_s = compute_saturation_pressure(T_b);
-    double p_v = compute_vapor_pressure(p_s, RH);
+    Real p_s = compute_saturation_pressure(T_b);
+    Real p_v = compute_vapor_pressure(p_s, RH);
 
-    //std::cout << "Vapor pressure is " << p_s << " " << p_v << "\n";
-
-    double q_v = 0.622*p_v/(p_b - p_v);
+    Real q_v = 0.622*p_v/(p_b - p_v);
 
         if(z < height){
             return 0.014;
@@ -95,24 +80,21 @@ double vapor_mixing_ratio(const double z, const double p_b, const double T_b, co
         }
 }
 
-double compute_temperature(const double p_b, const double theta_b)
+Real compute_temperature(const Real p_b, const Real theta_b)
 {
-    return theta_b*std::pow(p_b/p0,Rd/Cp);
+    return theta_b*std::pow(p_b/p_0,R_d/Cp_d);
 }
 
-double compute_dewpoint_temperature(const double z, const double p_b, const double T_b, const double RH)
+Real compute_dewpoint_temperature(const Real z, const Real p_b, const Real T_b, const Real RH)
 {
 
-    double T_dp, gamma, T;
+    Real T_dp, gamma, T;
     T = T_b - 273.15;
 
-    double a = 6.11e-3*p0, b = 18.678, c = 257.14, d = 234.5;
-	std::cout << "Value is " << RH << " " << (b - T/d)*T/(c + T) << "\n";
+    Real a = 6.11e-3*p_0, b = 18.678, c = 257.14, d = 234.5;
     gamma = log(RH*exp((b - T/d)*T/(c + T)));
 	
     T_dp = c*gamma/(b - gamma);
-
-	std::cout << "T_dp value is " << T_dp << "\n";
 
     return T_dp;
 
@@ -123,24 +105,25 @@ init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p,
                                const Real& dz, const Real&  prob_lo_z,
                                const int& khi)
 {
-    double z, p_b, theta_b, T_b, rho_b, RH, T_dp, rho0, theta0, q_v=0.0;
-    p_b = p0;
-    T_b = T0;
+    Real z, p_b, theta_b, T_b, rho_b, RH, T_dp, rho0, theta0, T0, q_v=0.0;
+    p_b = p_0;
+    //T_b = T0;
 
     FILE *file_IC, *file_parcel;
-    file_IC = fopen("input_sounding.txt","w");
+    file_IC = fopen("input_sounding_probcpp.txt","w");
 
-	// Do the first integration from z = 0 to z = 0.5*dz
+	// Do the first integration from z = 0 (base) to z = 0.5*dz (first cell center)
 	z = 0;
 	theta0 = compute_theta(z);
-	T_b    = compute_temperature(p0, theta0);
-	RH     = compute_relative_humidity(z, p0, T0);
-    q_v    = 0.0;//vapor_mixing_ratio(z, p[k-1], T_b, RH);
-	rho0   = p0/(Rd*T_b*(1.0 + Rv_by_Rd*q_v));
+	T0    = compute_temperature(p_0, theta0);
+	RH     = compute_relative_humidity(z, p_0, T0);
+    q_v    = 0.0;//vapor_mixing_ratio(z, p_0, T0, RH);
+	rho0   = p_0/(R_d*T0*(1.0 + R_v_by_R_d*q_v));
 
-	p[0]   = p0 - rho0*g*(1.0 + q_v)*delz/2.0;
+	// Compute p at z = 0.5 dz - the first cell center
+	p[0]   = p_0 - rho0*CONST_GRAV*(1.0 + q_v)*dz/2.0;
 
-	// Compute the quantities at z = 0.5*dz
+	// Compute the quantities at z = 0.5*dz (first cell center)
 
 	z = prob_lo_z + 0.5*dz;
 	theta[0] = compute_theta(z);
@@ -148,28 +131,33 @@ init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p,
 	RH       = compute_relative_humidity(z, p[0], T_b);
 	q_v      = 0.0;//vapor_mixing_ratio(z, p[0], T_b, RH);
     T_dp     = compute_dewpoint_temperature(z, p[0], T_b, RH);
-	r[0]     = p[0]/(Rd*T_b*(1.0 + Rv_by_Rd*q_v));
-    fprintf(file_IC, "%0.15g %0.15g %0.15g %0.15g %0.15g\n " , z, T_b-273.15, T_dp, p[0], r[0]);
+	r[0]     = p[0]/(R_d*T_b*(1.0 + R_v_by_R_d*q_v));
+    //fprintf(file_IC, "%0.15g %0.15g %0.15g %0.15g %0.15g\n " , z, T_b-273.15, T_dp, p[0], r[0]);
 	
 
     for (int k=1;k<=khi;k++){
-		std::cout << "k val is " << k << "\n";
         z = prob_lo_z + (k+0.5)*dz;
 
-        p[k] = p[k-1] - r[k-1]*g*(1.0 + q_v)*delz;
+		// Do forward integration from k-1 to k using values at k-1
+        p[k] = p[k-1] - r[k-1]*CONST_GRAV*(1.0 + q_v)*dz;
 
+		// Now compute the values at k
         theta[k] = compute_theta(z);
 		T_b      = compute_temperature(p[k], theta[k]);
 		RH       = compute_relative_humidity(z, p[k], T_b);
-		q_v      = 0.0;//vapor_mixing_ratio(z, p[k-1], T_b, RH);
-        r[k]     = p[k]/(Rd*T_b*(1.0 + Rv_by_Rd*q_v));
+		q_v      = 0.0;//vapor_mixing_ratio(z, p[k], T_b, RH);
+        r[k]     = p[k]/(R_d*T_b*(1.0 + R_v_by_R_d*q_v));
+    	T_dp     = compute_dewpoint_temperature(z, p[k], T_b, RH);
 
 
     	fprintf(file_IC, "%0.15g %0.15g %0.15g %0.15g %0.15g\n " , z, T_b-273.15, T_dp, p[k], r[k]);
-        std::cout << "Temperature is " << z << " " << T_b  - 273.15 << " " << T_dp << " " << rho_b  << " " << p[k] << "\n";
+        //std::cout << "Temperature is " << z << " " << T_b  - 273.15 << " " << T_dp << " " << rho_b  << " " << p[k] << "\n";
 
     }
     fclose(file_IC);
+
+	//exit(0);
+	
 
   r[khi+1] = r[khi];
 }
@@ -184,8 +172,6 @@ erf_init_dens_hse(MultiFab& rho_hse,
     const Real dz        = geom.CellSize()[2];
     const int khi        = geom.Domain().bigEnd()[2];
 
-	std::cout << "Value of khi is " << khi  << "\n";
-	exit(0);
 
     const Real T_sfc    = 300.;
     const Real rho_sfc  = p_0 / (R_d*T_sfc);
@@ -316,15 +302,11 @@ init_custom_prob(
    amrex::Gpu::DeviceVector<Real> d_p(khi+2);
    amrex::Gpu::DeviceVector<Real> d_t(khi+2);
 
-	std::cout << "Reached here 0" << "\n";
    init_isentropic_hse_no_terrain(h_t.data(), h_r.data(),h_p.data(),dz,prob_lo_z,khi);
 
-	std::cout << "Reached here 1" << "\n";
    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_r.begin(), h_r.end(), d_r.begin());
    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_p.begin(), h_p.end(), d_p.begin());
    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_t.begin(), h_t.end(), d_t.begin());
-
-	std::cout << "Reached here 2" << "\n";
 
     Real* t = d_t.data();
     Real* r = d_r.data();
