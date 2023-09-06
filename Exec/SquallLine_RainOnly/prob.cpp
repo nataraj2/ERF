@@ -101,11 +101,11 @@ Real compute_dewpoint_temperature(const Real z, const Real p_b, const Real T_b, 
 }
 
 void
-init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p, 
+init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p, Real *q_v, 
                                const Real& dz, const Real&  prob_lo_z,
                                const int& khi)
 {
-    Real z, p_b, theta_b, T_b, rho_b, RH, T_dp, rho0, theta0, T0, q_v=0.0;
+    Real z, p_b, theta_b, T_b, rho_b, RH, T_dp, rho0, theta0, T0, q_v0;
     p_b = p_0;
     //T_b = T0;
 
@@ -117,11 +117,11 @@ init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p,
 	theta0 = compute_theta(z);
 	T0    = compute_temperature(p_0, theta0);
 	RH     = compute_relative_humidity(z, p_0, T0);
-    q_v    = 0.0;//vapor_mixing_ratio(z, p_0, T0, RH);
-	rho0   = p_0/(R_d*T0*(1.0 + R_v_by_R_d*q_v));
+    q_v0   = 0.0;//vapor_mixing_ratio(z, p_0, T0, RH);
+	rho0   = p_0/(R_d*T0*(1.0 + R_v_by_R_d*q_v0));
 
 	// Compute p at z = 0.5 dz - the first cell center
-	p[0]   = p_0 - rho0*CONST_GRAV*(1.0 + q_v)*dz/2.0;
+	p[0]   = p_0 - rho0*CONST_GRAV*dz/2.0;
 
 	// Compute the quantities at z = 0.5*dz (first cell center)
 
@@ -129,9 +129,11 @@ init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p,
 	theta[0] = compute_theta(z);
 	T_b      = compute_temperature(p[0], theta[0]);
 	RH       = compute_relative_humidity(z, p[0], T_b);
-	q_v      = 0.0;//vapor_mixing_ratio(z, p[0], T_b, RH);
+	q_v[0]   = 0.0;//vapor_mixing_ratio(z, p[0], T_b, RH);
     T_dp     = compute_dewpoint_temperature(z, p[0], T_b, RH);
-	r[0]     = p[0]/(R_d*T_b*(1.0 + R_v_by_R_d*q_v));
+	r[0]     = p[0]/(R_d*T_b*(1.0 + R_v_by_R_d*q_v[0]));
+
+	
     //fprintf(file_IC, "%0.15g %0.15g %0.15g %0.15g %0.15g\n " , z, T_b-273.15, T_dp, p[0], r[0]);
 	
 
@@ -139,18 +141,18 @@ init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p,
         z = prob_lo_z + (k+0.5)*dz;
 
 		// Do forward integration from k-1 to k using values at k-1
-        p[k] = p[k-1] - r[k-1]*CONST_GRAV*(1.0 + q_v)*dz;
+        p[k] = p[k-1] - r[k-1]*CONST_GRAV*dz;
 
 		// Now compute the values at k
         theta[k] = compute_theta(z);
 		T_b      = compute_temperature(p[k], theta[k]);
 		RH       = compute_relative_humidity(z, p[k], T_b);
-		q_v      = 0.0;//vapor_mixing_ratio(z, p[k], T_b, RH);
-        r[k]     = p[k]/(R_d*T_b*(1.0 + R_v_by_R_d*q_v));
+		q_v[k]   = 0.0;//vapor_mixing_ratio(z, p[k], T_b, RH);
+        r[k]     = p[k]/(R_d*T_b*(1.0 + R_v_by_R_d*q_v[k]));
     	T_dp     = compute_dewpoint_temperature(z, p[k], T_b, RH);
 
 
-    	fprintf(file_IC, "%0.15g %0.15g %0.15g %0.15g %0.15g\n " , z, T_b-273.15, T_dp, p[k], r[k]);
+    	//fprintf(file_IC, "%0.15g %0.15g %0.15g %0.15g %0.15g\n " , z, T_b-273.15, T_dp, p[k], r[k]);
         //std::cout << "Temperature is " << z << " " << T_b  - 273.15 << " " << T_dp << " " << rho_b  << " " << p[k] << "\n";
 
     }
@@ -212,16 +214,19 @@ erf_init_dens_hse(MultiFab& rho_hse,
         Vector<Real> h_r(khi+2);
         Vector<Real> h_p(khi+2);
         Vector<Real> h_t(khi+2);
+   		Vector<Real> h_q_v(khi+2);
 
         amrex::Gpu::DeviceVector<Real> d_r(khi+2);
         amrex::Gpu::DeviceVector<Real> d_p(khi+2);
         amrex::Gpu::DeviceVector<Real> d_t(khi+2);
+   		amrex::Gpu::DeviceVector<Real> d_q_v(khi+2);
 
-        init_isentropic_hse_no_terrain(h_t.data(), h_r.data(),h_p.data(),dz,prob_lo_z,khi);
+        init_isentropic_hse_no_terrain(h_t.data(), h_r.data(),h_p.data(), h_q_v.data(), dz,prob_lo_z,khi);
 
         amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_r.begin(), h_r.end(), d_r.begin());
         amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_p.begin(), h_p.end(), d_p.begin());
         amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_t.begin(), h_t.end(), d_t.begin());
+   		amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_q_v.begin(), h_q_v.end(), d_q_v.begin());
 
         Real* r = d_r.data();
 
@@ -297,19 +302,26 @@ init_custom_prob(
    Vector<Real> h_r(khi+2);
    Vector<Real> h_p(khi+2);
    Vector<Real> h_t(khi+2);
+   Vector<Real> h_q_v(khi+2);
 
    amrex::Gpu::DeviceVector<Real> d_r(khi+2);
    amrex::Gpu::DeviceVector<Real> d_p(khi+2);
    amrex::Gpu::DeviceVector<Real> d_t(khi+2);
+   amrex::Gpu::DeviceVector<Real> d_q_v(khi+2);
 
-   init_isentropic_hse_no_terrain(h_t.data(), h_r.data(),h_p.data(),dz,prob_lo_z,khi);
+   init_isentropic_hse_no_terrain(h_t.data(), h_r.data(),h_p.data(),h_q_v.data(),dz,prob_lo_z,khi);
 
    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_r.begin(), h_r.end(), d_r.begin());
    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_p.begin(), h_p.end(), d_p.begin());
    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_t.begin(), h_t.end(), d_t.begin());
+   amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_q_v.begin(), h_q_v.end(), d_q_v.begin());
 
     Real* t = d_t.data();
     Real* r = d_r.data();
+    Real* q_v = d_q_v.data();
+	Real* p = d_p.data();
+	
+	const Real x_c = 0.0, z_c = 2.0e3, x_r = 10e3, z_r = 1.5e3, r_c = 1.0, theta_c = 3.0;
 
   amrex::ParallelForRNG(bx, [=, parms=parms] AMREX_GPU_DEVICE(int i, int j, int k, const amrex::RandomEngine& engine) noexcept
   {
@@ -317,39 +329,62 @@ init_custom_prob(
     const auto prob_lo         = geomdata.ProbLo();
     const auto dx              = geomdata.CellSize();
     const amrex::Real z        = prob_lo[2] + (k + 0.5) * dx[2];
+    const amrex::Real x        = prob_lo[0] + (i + 0.5) * dx[0];
+	Real rad, delta_theta, theta_total, temperature, rho;
+
+    // Introduce the warm bubble. Assume that the bubble is pressure matche with the background
+
+	rad = std::pow(std::pow(((x - x_c)/x_r),2) + std::pow(((z - z_c)/z_r),2), 0.5);
+
+	if(rad <= r_c){
+		delta_theta = theta_c*std::pow(cos(M_PI*rad/2.0),2);
+	}
+	else{
+		delta_theta = 0.0;
+	}
+	
+	theta_total = d_t[k] + delta_theta;
+	temperature = compute_temperature(p[k], theta_total);
+	rho = p[k]/(R_d*temperature);
 
 
     // This version perturbs rho but not p
-    state(i, j, k, RhoTheta_comp) = d_r[k]*d_t[k];
-    state(i, j, k, Rho_comp)      = d_r[k];
+    state(i, j, k, RhoTheta_comp) = rho*theta_total;
+    state(i, j, k, Rho_comp)      = rho;
 
     // Set scalar = 0 everywhere
     state(i, j, k, RhoScalar_comp) = 0.0;
 
     // mean states
 #if defined(ERF_USE_MOISTURE)
-    state(i, j, k, RhoQt_comp) = 0.0;//rho*qvapor;
+    state(i, j, k, RhoQt_comp) = rho*d_q_v[k];
     state(i, j, k, RhoQp_comp) = 0.0;
-    qv(i, j, k) = 0.0;//qvapor;
+    qv(i, j, k) = d_q_v[k];
     qc(i, j, k) = 0.0;
     qi(i, j, k) = 0.0;
 #elif defined(ERF_USE_WARM_NO_PRECIP)
     state(i, j, k, RhoQv_comp) = 0.0;//rho*qvapor;
     state(i, j, k, RhoQc_comp) = 0.0;
 #endif
+
+	amrex::Real R_t        = R_d;
+    amrex::Real Cp_t       = Cp_d;
+    amrex::Real Gamma_t    = Cp_t/(Cp_t-R_t);
+    amrex::Real rhotheta_t = state(i, j, k, RhoTheta_comp)*(1.0+(R_v/R_d)*d_q_v[k]);
+	//if(fabs(p_0 * std::pow(R_t * rhotheta_t * ip_0, Gamma_t) - d_p[k]) > 1e-6){ 	
+	if(k==0){ 	
+    	//std::cout << k << " " << p_0 * std::pow(R_t * rhotheta_t * ip_0, Gamma_t) << " " <<  d_p[k] << "\n";
+		//printf("%0.15g\n", p_0 * std::pow(R_t * rhotheta_t * ip_0, Gamma_t));
+	 	//exit(0);
+	}
+		
+
   });
 
   // Set the x-velocity
   amrex::ParallelFor(xbx, [=, parms=parms] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
     const amrex::Real z = prob_lo_z + (k+0.5) * dz;
-    if (z < zs-deltaz) {
-      x_vel(i, j, k) = us*(z/zs) - uc;
-    } else if (std::abs(z-zs) < deltaz) {
-      x_vel(i, j, k) = (-0.8+3.*(z/zs)-1.25*(z/zs)*(z/zs))*us-uc;
-    } else {
-      x_vel(i, j, k) = us-uc;
-    }
-	x_vel(i,j,k) = 0.0;
+	x_vel(i,j,k) = -12.0 * std::max(0.0, (2.5e3 - z)/2.5e3);
   });
 
   // Set the y-velocity
