@@ -14,9 +14,10 @@ using namespace amrex;
  * @param[in]  c_p    Specific heat
  */
 
-#if defined(ERF_USE_WARM_NO_PRECIP)
+#if defined(ERF_USE_WARM_NO_PRECIP) || defined(ERF_USE_MOISTURE)
 void
-ERF::condensation_source (MultiFab& source, MultiFab& S, Real tau_cond, Real c_p)
+ERF::condensation_source (MultiFab& source, MultiFab& S, Real tau_cond, Real c_p, amrex::MultiFab& qmoist)
+#if defined(ERF_USE_WARM_NO_PRECIP)
 {
     for ( MFIter mfi(S, TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 
@@ -74,4 +75,34 @@ ERF::condensation_source (MultiFab& source, MultiFab& S, Real tau_cond, Real c_p
 
     } // mfi
 }
+#else
+{
+	const auto geomdata = geom[0].data();
+    const Real dz = geomdata.CellSize(2);
+	const auto *const prob_lo = geom[0].ProbLo();
+
+	MultiFab qcloud(qmoist, make_alias, 1, 1);
+
+	 for ( MFIter mfi(S, TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+
+        const Box& bx = mfi.tilebox();
+        auto const&   s_arr = S.const_array(mfi);
+		auto        src_arr = source.array(mfi);
+		const Array4<const Real> & qc_data = qcloud.array(mfi);	
+
+		ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+        {
+			const Real z = prob_lo[2] + (k + 0.5) * dz;
+	        Real      rho_d = s_arr(i,j,k,Rho_comp);
+            Real rhotheta_d = s_arr(i,j,k,RhoTheta_comp);
+            Real    theta_d = rhotheta_d / rho_d;
+			Real T   = getTgivenRandRTh(rho_d, rhotheta_d);
+
+			if(z < 12e3){
+				src_arr(i,j,k,RhoTheta_comp) =  theta_d/T*L_v/c_p*qc_data(i,j,k)/300.0;
+			}
+        });
+	}	
+}
+#endif
 #endif
