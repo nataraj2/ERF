@@ -125,7 +125,7 @@ ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
     if(use_zhi_sponge_damping){
         if (z > zhi_sponge_start) {
               Real xi = (z - zhi_sponge_start) / (ProbHiArr[2] - zhi_sponge_start);
-              cell_rhs(i, j, k, 0) -= sponge_strength * xi * xi * (cell_data(i, j, k, 0) - sponge_density);
+              //cell_rhs(i, j, k, 0) -= sponge_strength * xi * xi * (cell_data(i, j, k, 0) - sponge_density);
         }
     }
   });

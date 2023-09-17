@@ -16,6 +16,11 @@ ifeq ($(USE_WARM_NO_PRECIP),TRUE)
 CEXE_sources += ERF_make_condensation_source.cpp
 endif
 
+ifeq ($(USE_MOISTURE),TRUE)
+CEXE_sources += ERF_make_condensation_source.cpp
+endif
+
+
 ifeq ($(USE_POISSON_SOLVE),TRUE)
 CEXE_sources += ERF_slow_rhs_inc.cpp
 endif

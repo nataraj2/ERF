@@ -327,7 +327,7 @@ init_custom_prob(
     Real* q_v = d_q_v.data();
 	Real* p = d_p.data();
 	
-	const Real x_c = 0.0, z_c = 2.0e3, x_r = 10.0e3, z_r = 1.5e3, r_c = 1.0, theta_c = 3.0;
+	const Real x_c = 0.0, z_c = 2.0e3, x_r = 10.0e3, z_r = 1.5e3, r_c = 1.0, theta_c = 0.0;
 
   amrex::ParallelForRNG(bx, [=, parms=parms] AMREX_GPU_DEVICE(int i, int j, int k, const amrex::RandomEngine& engine) noexcept
   {
@@ -389,7 +389,7 @@ init_custom_prob(
   // Set the x-velocity
   amrex::ParallelFor(xbx, [=, parms=parms] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
     const amrex::Real z = prob_lo_z + (k+0.5) * dz;
-	x_vel(i,j,k) = -12.0 * std::max(0.0, (2.5e3 - z)/2.5e3);
+	x_vel(i,j,k) = -0.0 * std::max(0.0, (2.5e3 - z)/2.5e3);
   });
 
   // Set the y-velocity

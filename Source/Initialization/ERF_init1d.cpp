@@ -210,27 +210,28 @@ ERF::erf_enforce_hse(int lev,
 
             // Set value at surface from Newton iteration for rho
             pres_arr(i,j,k0  ) = p_0 - hz * rho_arr(i,j,k0) * l_gravity;
-              pi_arr(i,j,k0  ) = getExnergivenP(pres_arr(i,j,k0  ), rdOcp);
+            pi_arr(i,j,k0  ) = getExnergivenP(pres_arr(i,j,k0  ), rdOcp);
 
             // Set ghost cell with dz and rho at boundary
             pres_arr(i,j,k0-1) = p_0 + hz * rho_arr(i,j,k0) * l_gravity;
-              pi_arr(i,j,k0-1) = getExnergivenP(pres_arr(i,j,k0-1), rdOcp);
+            pi_arr(i,j,k0-1) = getExnergivenP(pres_arr(i,j,k0-1), rdOcp);
 
             Real dens_interp;
             if (l_use_terrain) {
                 for (int k = 1; k <= nz; k++) {
                     Real dz_loc = (zcc_arr(i,j,k) - zcc_arr(i,j,k-1));
-                    dens_interp = 0.5*(rho_arr(i,j,k) + rho_arr(i,j,k-1));
+                    dens_interp = 0.5*(rho_arr(i,j,k-1) + rho_arr(i,j,k-1));
                     pres_arr(i,j,k) = pres_arr(i,j,k-1) - dz_loc * dens_interp * l_gravity;
                     pi_arr(i,j,k) = getExnergivenP(pres_arr(i,j,k), rdOcp);
                 }
             } else {
                 for (int k = 1; k <= nz; k++) {
-                    dens_interp = 0.5*(rho_arr(i,j,k) + rho_arr(i,j,k-1));
+                    dens_interp = 0.5*(rho_arr(i,j,k-1) + rho_arr(i,j,k-1));
                     pres_arr(i,j,k) = pres_arr(i,j,k-1) - dz * dens_interp * l_gravity;
                     pi_arr(i,j,k) = getExnergivenP(pres_arr(i,j,k), rdOcp);
                 }
             }
+			//exit(0);
         });
 
         int domlo_x = domain.smallEnd(0); int domhi_x = domain.bigEnd(0);
@@ -243,7 +244,7 @@ ERF::erf_enforce_hse(int lev,
             bx.setBig(0,domlo_x-1);
             ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) {
                 pres_arr(i,j,k) = pres_arr(domlo_x,j,k);
-                  pi_arr(i,j,k) = getExnergivenP(pres_arr(i,j,k), rdOcp);
+                pi_arr(i,j,k) = getExnergivenP(pres_arr(i,j,k), rdOcp);
             });
         }
 

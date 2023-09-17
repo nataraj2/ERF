@@ -359,9 +359,9 @@ private:
     // includes a recursive call for finer levels
     void timeStep (int lev, amrex::Real time, int iteration);
 
-#if defined(ERF_USE_WARM_NO_PRECIP)
+#if defined(ERF_USE_WARM_NO_PRECIP) || defined(ERF_USE_MOISTURE)
     void condensation_source (amrex::MultiFab& source, amrex::MultiFab& S_new,
-                              amrex::Real tau_cond, amrex::Real c_p);
+                              amrex::Real tau_cond, amrex::Real c_p, amrex::MultiFab& qmoist );
 #endif
 
     // advance a single level for a single time step

@@ -549,6 +549,7 @@ void erf_slow_rhs_pre (int /*level*/, int nrk,
             Real qv_for_p = 0.;
 #endif
             pp_arr(i,j,k) = getPgivenRTh(cell_data(i,j,k,RhoTheta_comp),qv_for_p) - p0_arr(i,j,k);
+
         });
         } // end profile
 
@@ -1038,9 +1039,12 @@ void erf_slow_rhs_pre (int /*level*/, int nrk,
                 q = 0.5 * ( cell_prim(i,j,k,PrimQv_comp) + cell_prim(i,j,k-1,PrimQv_comp)
                            +cell_prim(i,j,k,PrimQc_comp) + cell_prim(i,j,k-1,PrimQc_comp) );
 #endif
+
+				
                 rho_w_rhs(i, j, k) += (buoyancy_fab(i,j,k) - gpz) / (1.0_rt + q)
                                     - solverChoice.abl_pressure_grad[2]
                                     + 0.5*(cell_data(i,j,k,Rho_comp)+cell_data(i,j,k-1,Rho_comp)) * solverChoice.abl_geo_forcing[2];
+
 
                 // Add Coriolis forcing (that assumes east is +x, north is +y)
                 if (solverChoice.use_coriolis)

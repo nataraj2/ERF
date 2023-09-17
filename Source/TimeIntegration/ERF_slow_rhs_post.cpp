@@ -411,7 +411,8 @@ void erf_slow_rhs_post (int /*level*/,
                 cur_cons(i,j,k,n) = temp_val / detJ_new_arr(i,j,k);
               });
             }
-        } else {
+        } else {	
+        	start_comp = RhoScalar_comp;
             auto const& src_arr = source.const_array(mfi);
             num_comp = S_data[IntVar::cons].nComp() - start_comp;
             ParallelFor(tbx, num_comp,
