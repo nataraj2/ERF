@@ -1,5 +1,5 @@
 # ------------------  INPUTS TO MAIN PROGRAM  -------------------
-max_step = 9000
+max_step = 14400
 stop_time = 90000.0
 
 amrex.fpe_trap_invalid = 1
@@ -54,7 +54,7 @@ erf.plot_vars_1         = density rhotheta rhoQt rhoQp x_velocity y_velocity z_v
 
 # SOLVER CHOICE
 erf.use_gravity = true
-erf.buoyancy_type = 4
+erf.buoyancy_type = 1
 erf.use_coriolis = false
 erf.use_rayleigh_damping = false
 
@@ -68,9 +68,9 @@ erf.les_type = "None"
 erf.molec_diff_type = "ConstantAlpha"
 #erf.molec_diff_type = "Constant"
 erf.rho0_trans = 1.0 # [kg/m^3], used to convert input diffusivities
-erf.dynamicViscosity = 100.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
+erf.dynamicViscosity = 200.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
 erf.alpha_T = 00.0 # [m^2/s]
-erf.alpha_C = 100.0
+erf.alpha_C = 00.0
 
 erf.moisture_model = "Kessler"
 erf.use_moist_background = true
