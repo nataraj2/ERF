@@ -319,7 +319,7 @@ ERF::post_timestep (int nstep, Real time, Real dt_lev0)
     if (solverChoice.coupling_type == CouplingType::TwoWay)
     {
         int  src_comp_reflux = 0;
-        int  num_comp_reflux = NVAR;
+        int  num_comp_reflux = vars_new[0][Vars::cons].nComp();
         bool use_terrain = solverChoice.use_terrain;
         for (int lev = finest_level-1; lev >= 0; lev--)
         {
@@ -531,8 +531,8 @@ ERF::InitData ()
 
 
         if (solverChoice.coupling_type == CouplingType::TwoWay) {
-            int  src_comp_reflux = 0;
-            int  num_comp_reflux = NVAR;
+            int src_comp_reflux = 0;
+            int num_comp_reflux = vars_new[0][Vars::cons].nComp();
             AverageDown(src_comp_reflux, num_comp_reflux);
         }
 
@@ -548,7 +548,7 @@ ERF::InitData ()
         if (solverChoice.moisture_type != MoistureType::None)
         {
             for (int lev = 0; lev <= finest_level; lev++) {
-                FillPatchMoistVars(lev, qmoist[lev]);
+                FillPatchMoistVars(lev, *(qmoist[lev]));
             }
         }
     }
@@ -568,12 +568,13 @@ ERF::InitData ()
     // Initialize flux registers (whether we start from scratch or restart)
     if (solverChoice.coupling_type == CouplingType::TwoWay) {
         advflux_reg[0] = nullptr;
+        int ncomp_reflux = vars_new[0][Vars::cons].nComp();
         for (int lev = 1; lev <= finest_level; lev++)
         {
             advflux_reg[lev] = new YAFluxRegister(grids[lev], grids[lev-1],
                                                    dmap[lev],  dmap[lev-1],
                                                    geom[lev],  geom[lev-1],
-                                              ref_ratio[lev-1], lev, NVAR);
+                                              ref_ratio[lev-1], lev, ncomp_reflux);
         }
     }
 
@@ -587,9 +588,9 @@ ERF::InitData ()
         {
             // If not restarting we need to fill qmoist given qt and qp.
             if (restart_chkfile.empty()) {
-                micro.Init(vars_new[lev][Vars::cons], qmoist[lev],
+                micro.Init(vars_new[lev][Vars::cons], *(qmoist[lev]),
                            grids[lev], Geom(lev), 0.0); // dummy value, not needed just to diagnose
-                micro.Update(vars_new[lev][Vars::cons], qmoist[lev]);
+                micro.Update(vars_new[lev][Vars::cons], *(qmoist[lev]));
             }
         }
     }
@@ -612,8 +613,8 @@ ERF::InitData ()
         {
             amrex::IntVect ng = IntVect(0,0,0);
             MultiFab S(vars_new[lev][Vars::cons],make_alias,0,2);
-            MultiFab::Copy(  *Theta_prim[lev], S, Cons::RhoTheta, 0, 1, ng);
-            MultiFab::Divide(*Theta_prim[lev], S, Cons::Rho     , 0, 1, ng);
+            MultiFab::Copy(  *Theta_prim[lev], S, RhoTheta_comp, 0, 1, ng);
+            MultiFab::Divide(*Theta_prim[lev], S, Rho_comp     , 0, 1, ng);
             m_most->update_mac_ptrs(lev, vars_new, Theta_prim);
             m_most->update_fluxes(lev, t_new[lev]);
         }
@@ -664,10 +665,12 @@ ERF::InitData ()
         auto& lev_new = vars_new[lev];
         auto& lev_old = vars_old[lev];
 
-        MultiFab::Copy(lev_old[Vars::cons],lev_new[Vars::cons],0,0,NVAR,lev_new[Vars::cons].nGrowVect());
-        MultiFab::Copy(lev_old[Vars::xvel],lev_new[Vars::xvel],0,0,   1,lev_new[Vars::xvel].nGrowVect());
-        MultiFab::Copy(lev_old[Vars::yvel],lev_new[Vars::yvel],0,0,   1,lev_new[Vars::yvel].nGrowVect());
-        MultiFab::Copy(lev_old[Vars::zvel],lev_new[Vars::zvel],0,0,   1,lev_new[Vars::zvel].nGrowVect());
+        int ncomp = lev_new[Vars::cons].nComp();
+
+        MultiFab::Copy(lev_old[Vars::cons],lev_new[Vars::cons],0,0,ncomp,lev_new[Vars::cons].nGrowVect());
+        MultiFab::Copy(lev_old[Vars::xvel],lev_new[Vars::xvel],0,0,    1,lev_new[Vars::xvel].nGrowVect());
+        MultiFab::Copy(lev_old[Vars::yvel],lev_new[Vars::yvel],0,0,    1,lev_new[Vars::yvel].nGrowVect());
+        MultiFab::Copy(lev_old[Vars::zvel],lev_new[Vars::zvel],0,0,    1,lev_new[Vars::zvel].nGrowVect());
     }
 
     // Compute the minimum dz in the domain (to be used for setting the timestep)
@@ -856,6 +859,8 @@ ERF::init_only (int lev, Real time)
     lev_new[Vars::yvel].setVal(0.0); lev_old[Vars::yvel].setVal(0.0);
     lev_new[Vars::zvel].setVal(0.0); lev_old[Vars::zvel].setVal(0.0);
 
+    qmoist[lev]->setVal(0.);
+
     // Initialize background flow (optional)
     if (init_type == "input_sounding") {
         // The base state is initialized by integrating vertically through the
@@ -888,8 +893,6 @@ ERF::init_only (int lev, Real time)
         initHSE(lev); // need to call this first
         init_from_hse(lev);
     }
-
-    qmoist[lev].setVal(0.);
 
     // Add problem-specific flow features
     //
@@ -957,20 +960,6 @@ ERF::ReadParameters ()
 #ifdef ERF_USE_PARTICLES
         particleData.init_particle_params();
 #endif
-
-        // What type of moisture model to use
-        if (solverChoice.moisture_type == MoistureType::SAM) {
-            micro.SetModel<SAM>();
-        } else if (solverChoice.moisture_type == MoistureType::Kessler) {
-            micro.SetModel<Kessler>();
-        } else if (solverChoice.moisture_type == MoistureType::FastEddy) {
-            micro.SetModel<FastEddy>();
-        } else if (solverChoice.moisture_type == MoistureType::None) {
-            micro.SetModel<NullMoist>();
-            amrex::Print() << "WARNING: Compiled with moisture but using NullMoist model!\n";
-        } else {
-            amrex::Abort("Dont know this moisture_type!") ;
-        }
 
         // If this is set, it must be even
         if (fixed_mri_dt_ratio > 0 && (fixed_mri_dt_ratio%2 != 0) )
@@ -1126,6 +1115,22 @@ ERF::ReadParameters ()
 #endif
 
     solverChoice.init_params(max_level);
+
+    // What type of moisture model to use
+    // NOTE: Must be checked after init_params
+    if (solverChoice.moisture_type == MoistureType::SAM) {
+        micro.SetModel<SAM>();
+    } else if (solverChoice.moisture_type == MoistureType::Kessler) {
+        micro.SetModel<Kessler>();
+    } else if (solverChoice.moisture_type == MoistureType::FastEddy) {
+        micro.SetModel<FastEddy>();
+    } else if (solverChoice.moisture_type == MoistureType::None) {
+        micro.SetModel<NullMoist>();
+        amrex::Print() << "WARNING: Compiled with moisture but using NullMoist model!\n";
+    } else {
+        amrex::Abort("Dont know this moisture_type!") ;
+    }
+
     if (verbose > 0) {
         solverChoice.display();
     }
@@ -1145,7 +1150,7 @@ ERF::MakeHorizontalAverages ()
     // First, average down all levels (if doing two-way coupling)
     if (solverChoice.coupling_type == CouplingType::TwoWay) {
         int  src_comp_reflux = 0;
-        int  num_comp_reflux = NVAR;
+        int  num_comp_reflux = vars_new[lev][Vars::cons].nComp();
         AverageDown(src_comp_reflux, num_comp_reflux);
     }
 
@@ -1161,18 +1166,18 @@ ERF::MakeHorizontalAverages ()
         auto  fab_arr = mf.array(mfi);
         auto const cons_arr = vars_new[lev][Vars::cons].const_array(mfi);
         ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-            Real dens = cons_arr(i, j, k, Cons::Rho);
+            Real dens = cons_arr(i, j, k, Rho_comp);
             fab_arr(i, j, k, 0) = dens;
-            fab_arr(i, j, k, 1) = cons_arr(i, j, k, Cons::RhoTheta) / dens;
+            fab_arr(i, j, k, 1) = cons_arr(i, j, k, RhoTheta_comp) / dens;
             if (!use_moisture) {
-                fab_arr(i, j, k, 2) = getPgivenRTh(cons_arr(i, j, k, Cons::RhoTheta));
+                fab_arr(i, j, k, 2) = getPgivenRTh(cons_arr(i, j, k, RhoTheta_comp));
             }
         });
     }
 
     if (use_moisture)
     {
-        MultiFab qv(qmoist[lev], make_alias, 0, 1);
+        MultiFab qv(*(qmoist[lev]), make_alias, 0, 1);
 
         for (MFIter mfi(mf); mfi.isValid(); ++mfi) {
             const Box& bx = mfi.validbox();
@@ -1181,10 +1186,10 @@ ERF::MakeHorizontalAverages ()
             auto const   qv_arr = qv.const_array(mfi);
 
             ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-                Real dens = cons_arr(i, j, k, Cons::Rho);
-                fab_arr(i, j, k, 2) = getPgivenRTh(cons_arr(i, j, k, Cons::RhoTheta), qv_arr(i,j,k));
-                fab_arr(i, j, k, 3) = cons_arr(i, j, k, Cons::RhoQ1) / dens;
-                fab_arr(i, j, k, 4) = cons_arr(i, j, k, Cons::RhoQ2) / dens;
+                Real dens = cons_arr(i, j, k, Rho_comp);
+                fab_arr(i, j, k, 2) = getPgivenRTh(cons_arr(i, j, k, RhoTheta_comp), qv_arr(i,j,k));
+                fab_arr(i, j, k, 3) = cons_arr(i, j, k, RhoQ1_comp) / dens;
+                fab_arr(i, j, k, 4) = cons_arr(i, j, k, RhoQ2_comp) / dens;
             });
         }
 
@@ -1373,7 +1378,7 @@ ERF::Construct_ERFFillPatchers (int lev)
     auto& dm_fine  = fine_new[Vars::cons].DistributionMap();
     auto& dm_crse  = crse_new[Vars::cons].DistributionMap();
 
-    int ncomp = NVAR;
+    int ncomp = vars_new[lev][Vars::cons].nComp();
 
     FPr_c.emplace_back(ba_fine, dm_fine, geom[lev]  ,
                        ba_crse, dm_crse, geom[lev-1],
@@ -1401,7 +1406,7 @@ ERF::Define_ERFFillPatchers (int lev)
     auto& dm_fine  = fine_new[Vars::cons].DistributionMap();
     auto& dm_crse  = crse_new[Vars::cons].DistributionMap();
 
-    int ncomp = NVAR;
+    int ncomp = fine_new[Vars::cons].nComp();
 
     FPr_c[lev-1].Define(ba_fine, dm_fine, geom[lev]  ,
                         ba_crse, dm_crse, geom[lev-1],

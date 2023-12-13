@@ -43,7 +43,10 @@ ERF::setPlotVariables (const std::string& pp_plot_var_names, Vector<std::string>
     // Get state variables in the same order as we define them,
     // since they may be in any order in the input list
     Vector<std::string> tmp_plot_names;
-    for (int i = 0; i < Cons::NumVars; ++i) {
+
+    int ncomp_cons = (solverChoice.moisture_type == MoistureType::None) ? NVAR_max-2 : NVAR_max;
+
+    for (int i = 0; i < ncomp_cons; ++i) {
         if ( containerHasElement(plot_var_names, cons_names[i]) ) {
             tmp_plot_names.push_back(cons_names[i]);
         }
@@ -101,6 +104,8 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
     const Vector<std::string> varnames = PlotFileVarNames(plot_var_names);
     const int ncomp_mf = varnames.size();
 
+    int ncomp_cons = vars_new[0][Vars::cons].nComp();
+
     if (ncomp_mf == 0)
         return;
 
@@ -128,12 +133,13 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
         }
     }
 
-    for (int lev = 0; lev <= finest_level; ++lev) {
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
         int mf_comp = 0;
 
         // First, copy any of the conserved state variables into the output plotfile
-        AMREX_ALWAYS_ASSERT(cons_names.size() == Cons::NumVars);
-        for (int i = 0; i < Cons::NumVars; ++i) {
+        AMREX_ALWAYS_ASSERT(cons_names.size() >= ncomp_cons);
+        for (int i = 0; i < ncomp_cons; ++i) {
             if (containerHasElement(plot_var_names, cons_names[i])) {
                 MultiFab::Copy(mf[lev],vars_new[lev][Vars::cons],i,mf_comp,1,0);
                 mf_comp++;
@@ -205,7 +211,7 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
                 const Box& bx = mfi.tilebox();
                 const Array4<Real      >& derdat = mf[lev].array(mfi);
                 const Array4<Real const>&  S_arr = vars_new[lev][Vars::cons].const_array(mfi);
-                const Array4<Real const>& qv_arr = qmoist[0].const_array(mfi);
+                const Array4<Real const>& qv_arr = qmoist[0]->const_array(mfi);
 
                 ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
                 {
@@ -227,7 +233,7 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
                 const Array4<Real>& derdat = mf[lev].array(mfi);
                 const Array4<Real const>& p0_arr = p_hse.const_array(mfi);
                 const Array4<Real const>& S_arr = vars_new[lev][Vars::cons].const_array(mfi);
-                const Array4<Real const> & qv_arr  = qmoist[0].const_array(mfi);
+                const Array4<Real const> & qv_arr  = qmoist[0]->const_array(mfi);
 
                 ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
                 {
@@ -593,12 +599,14 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
             mf_comp ++;
         }
 
-        MultiFab qv_mf(qmoist[lev], make_alias, 0, 1);
-        MultiFab qc_mf(qmoist[lev], make_alias, 1, 1);
-        MultiFab qi_mf(qmoist[lev], make_alias, 2, 1);
-        MultiFab qr_mf(qmoist[lev], make_alias, 3, 1);
-        MultiFab qs_mf(qmoist[lev], make_alias, 4, 1);
-        MultiFab qg_mf(qmoist[lev], make_alias, 5, 1);
+        // TODO: Protect against accessing non-existent data
+        int q_size = micro.Get_Qmoist_Size();
+        MultiFab qv_mf(*(qmoist[lev]), make_alias, 0, 1);
+        MultiFab qc_mf(*(qmoist[lev]), make_alias, 1, 1);
+        MultiFab qi_mf(*(qmoist[lev]), make_alias, 2, 1);
+        MultiFab qr_mf(*(qmoist[lev]), make_alias, 3, 1);
+        MultiFab qs_mf(*(qmoist[lev]), make_alias, 4, 1);
+        MultiFab qg_mf(*(qmoist[lev]), make_alias, 5, 1);
 
         if (containerHasElement(plot_var_names, "qt"))
         {

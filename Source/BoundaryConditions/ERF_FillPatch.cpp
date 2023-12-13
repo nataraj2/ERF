@@ -92,8 +92,8 @@ ERF::FillPatch (int lev, Real time, const Vector<MultiFab*>& mfs, bool fillset)
 
 #ifdef ERF_USE_NETCDF
     // We call this here because it is an ERF routine
-    if (init_type == "real" && lev==0) fill_from_wrfbdy(mfs,time);
-    if (init_type == "metgrid" && lev==0) fill_from_metgrid(mfs,time);
+    if (init_type == "real"    && lev==0) fill_from_wrfbdy (mfs,time,false,0,ncomp_cons);
+    if (init_type == "metgrid" && lev==0) fill_from_metgrid(mfs,time,false,0,ncomp_cons);
 #endif
 
     if (m_r2d) fill_from_bndryregs(mfs,time);
@@ -295,17 +295,17 @@ ERF::FillCoarsePatch (int lev, Real time, const Vector<MultiFab*>& mfs)
         }
         else if (var_idx == Vars::xvel || var_idx == Vars::xmom)
         {
-            bccomp = NVAR;
+            bccomp = BCVars::xvel_bc;
             mapper = &face_linear_interp;
         }
         else if (var_idx == Vars::yvel || var_idx == Vars::ymom)
         {
-            bccomp = NVAR+1;
+            bccomp = BCVars::yvel_bc;
             mapper = &face_linear_interp;
         }
         else if (var_idx == Vars::zvel || var_idx == Vars::zmom)
         {
-            bccomp = NVAR+2;
+            bccomp = BCVars::zvel_bc;
             mapper = &face_linear_interp;
         }
 
