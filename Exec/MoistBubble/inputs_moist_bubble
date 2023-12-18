@@ -72,7 +72,7 @@ erf.dynamicViscosity = 00.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
 erf.alpha_T = 00.0 # [m^2/s]
 erf.alpha_C = 00.0
 
-erf.moisture_model = "Kessler"
+erf.moisture_model = "FastEddy"
 erf.use_moist_background = true
 
 erf.moistscal_horiz_adv_string = "Centered_2nd"
