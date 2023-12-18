@@ -44,8 +44,10 @@ void ERF::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
 
     init_stuff(lev, ba, dm);
 
-    lev_new[Vars::cons].define(ba, dm, Cons::NumVars, ngrow_state);
-    lev_old[Vars::cons].define(ba, dm, Cons::NumVars, ngrow_state);
+    int ncomp_cons = (solverChoice.moisture_type == MoistureType::None) ? NVAR_max-2 : NVAR_max;
+
+    lev_new[Vars::cons].define(ba, dm, ncomp_cons, ngrow_state);
+    lev_old[Vars::cons].define(ba, dm, ncomp_cons, ngrow_state);
 
     lev_new[Vars::xvel].define(convert(ba, IntVect(1,0,0)), dm, 1, ngrow_vels);
     lev_old[Vars::xvel].define(convert(ba, IntVect(1,0,0)), dm, 1, ngrow_vels);
@@ -59,7 +61,8 @@ void ERF::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
     //********************************************************************************************
     // Microphysics
     // *******************************************************************************************
-    qmoist[lev].define(ba, dm, 6, ngrow_state); // qv, qc, qi, qr, qs, qg
+    int q_size  = micro.Get_Qmoist_Size();
+    qmoist[lev] = std::make_unique<MultiFab>(ba, dm, q_size, ngrow_state); // qv, qc, qi, qr, qs, qg
 
     // ********************************************************************************************
     // Build the data structures for calculating diffusive/turbulent terms
@@ -175,6 +178,8 @@ ERF::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
     auto& lev_new = vars_new[lev];
     auto& lev_old = vars_old[lev];
 
+    int ncomp = lev_new[Vars::cons].nComp();
+
     // ********************************************************************************************
     // These are the persistent containers for the old and new data
     // ********************************************************************************************
@@ -194,7 +199,8 @@ ERF::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
     // Microphysics
     // *******************************************************************************************
     int ngrow_state = ComputeGhostCells(solverChoice.advChoice, solverChoice.use_NumDiff) + 1;
-    qmoist[lev].define(ba, dm, 6, ngrow_state); // qv, qc, qi, qr, qs, qg
+    int q_size  = micro.Get_Qmoist_Size();
+    qmoist[lev] = std::make_unique<MultiFab>(ba, dm, q_size, ngrow_state);
 
     init_stuff(lev, ba, dm);
 
@@ -226,7 +232,7 @@ ERF::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
         advflux_reg[lev] = new YAFluxRegister(ba, grids[lev-1],
                                               dm,  dmap[lev-1],
                                               geom[lev],  geom[lev-1],
-                                              ref_ratio[lev-1], lev, NVAR);
+                                              ref_ratio[lev-1], lev, ncomp);
     }
 
     // *****************************************************************************************************
@@ -267,11 +273,13 @@ ERF::RemakeLevel (int lev, Real time, const BoxArray& ba, const DistributionMapp
     Vector<MultiFab> temp_lev_new(Vars::NumTypes);
     Vector<MultiFab> temp_lev_old(Vars::NumTypes);
 
+    int ncomp_cons = vars_new[lev][Vars::cons].nComp();
+
     int ngrow_state = ComputeGhostCells(solverChoice.advChoice, solverChoice.use_NumDiff) + 1;
     int ngrow_vels  = ComputeGhostCells(solverChoice.advChoice, solverChoice.use_NumDiff);
 
-    temp_lev_new[Vars::cons].define(ba, dm, Cons::NumVars, ngrow_state);
-    temp_lev_old[Vars::cons].define(ba, dm, Cons::NumVars, ngrow_state);
+    temp_lev_new[Vars::cons].define(ba, dm, ncomp_cons, ngrow_state);
+    temp_lev_old[Vars::cons].define(ba, dm, ncomp_cons, ngrow_state);
 
     temp_lev_new[Vars::xvel].define(convert(ba, IntVect(1,0,0)), dm, 1, ngrow_vels);
     temp_lev_old[Vars::xvel].define(convert(ba, IntVect(1,0,0)), dm, 1, ngrow_vels);
@@ -290,13 +298,14 @@ ERF::RemakeLevel (int lev, Real time, const BoxArray& ba, const DistributionMapp
         advflux_reg[lev] = new YAFluxRegister(ba, grids[lev-1],
                                               dm,  dmap[lev-1],
                                               geom[lev],  geom[lev-1],
-                                              ref_ratio[lev-1], lev, NVAR);
+                                              ref_ratio[lev-1], lev, ncomp_cons);
     }
 
     //********************************************************************************************
     // Microphysics
     // *******************************************************************************************
-    qmoist[lev].define(ba, dm, 6, ngrow_state); // qv, qc, qi, qr, qs, qg
+    int q_size = micro.Get_Qmoist_Size();
+    qmoist[lev]->define(ba, dm, q_size, ngrow_state); // qv, qc, qi, qr, qs, qg
 
     init_stuff(lev,ba,dm);
 
@@ -312,10 +321,10 @@ ERF::RemakeLevel (int lev, Real time, const BoxArray& ba, const DistributionMapp
     // ********************************************************************************************
     // Copy from new into old just in case
     // ********************************************************************************************
-    MultiFab::Copy(temp_lev_old[Vars::cons],temp_lev_new[Vars::cons],0,0,NVAR,ngrow_state);
-    MultiFab::Copy(temp_lev_old[Vars::xvel],temp_lev_new[Vars::xvel],0,0,   1,ngrow_vels);
-    MultiFab::Copy(temp_lev_old[Vars::yvel],temp_lev_new[Vars::yvel],0,0,   1,ngrow_vels);
-    MultiFab::Copy(temp_lev_old[Vars::zvel],temp_lev_new[Vars::zvel],0,0,   1,IntVect(ngrow_vels,ngrow_vels,0));
+    MultiFab::Copy(temp_lev_old[Vars::cons],temp_lev_new[Vars::cons],0,0,ncomp_cons,ngrow_state);
+    MultiFab::Copy(temp_lev_old[Vars::xvel],temp_lev_new[Vars::xvel],0,0,    1,ngrow_vels);
+    MultiFab::Copy(temp_lev_old[Vars::yvel],temp_lev_new[Vars::yvel],0,0,    1,ngrow_vels);
+    MultiFab::Copy(temp_lev_old[Vars::zvel],temp_lev_new[Vars::zvel],0,0,    1,IntVect(ngrow_vels,ngrow_vels,0));
 
     // ********************************************************************************************
     // Now swap the pointers
@@ -461,9 +470,11 @@ ERF::initialize_integrator (int lev, MultiFab& cons_mf, MultiFab& vel_mf)
     const BoxArray& ba(cons_mf.boxArray());
     const DistributionMapping& dm(cons_mf.DistributionMap());
 
+    int ncomp_cons = cons_mf.nComp();
+
     // Initialize the integrator memory
     amrex::Vector<amrex::MultiFab> int_state; // integration state data structure example
-    int_state.push_back(MultiFab(cons_mf, amrex::make_alias, 0, Cons::NumVars)); // cons
+    int_state.push_back(MultiFab(cons_mf, amrex::make_alias, 0, ncomp_cons));         // cons
     int_state.push_back(MultiFab(convert(ba,IntVect(1,0,0)), dm, 1, vel_mf.nGrow())); // xmom
     int_state.push_back(MultiFab(convert(ba,IntVect(0,1,0)), dm, 1, vel_mf.nGrow())); // ymom
     int_state.push_back(MultiFab(convert(ba,IntVect(0,0,1)), dm, 1, vel_mf.nGrow())); // zmom
@@ -471,6 +482,7 @@ ERF::initialize_integrator (int lev, MultiFab& cons_mf, MultiFab& vel_mf)
     mri_integrator_mem[lev] = std::make_unique<MRISplitIntegrator<amrex::Vector<amrex::MultiFab> > >(int_state);
     mri_integrator_mem[lev]->setNoSubstepping(solverChoice.no_substepping);
     mri_integrator_mem[lev]->setIncompressible(solverChoice.incompressible);
+    mri_integrator_mem[lev]->setNcompCons(ncomp_cons);
     mri_integrator_mem[lev]->setForceFirstStageSingleSubstep(solverChoice.force_stage1_single_substep);
 }
 
@@ -543,6 +555,9 @@ ERF::ClearLevel (int lev)
     rV_old[lev].clear();
     rW_new[lev].clear();
     rW_old[lev].clear();
+
+    // Clears the qmoist memory
+    qmoist[lev].reset();
 
     // Clears the integrator memory
     mri_integrator_mem[lev].reset();
