@@ -77,7 +77,7 @@ public:
         amrex::Vector<amrex::Real>& thetabar,
         amrex::Geometry      const& geom) override;
 
-    amrex::Real compute_theta (amrex::Real z);
+    amrex::Real compute_theta (const amrex::Real T_b, const amrex::Real p_b);
 
     amrex::Real compute_p_k (amrex::Real& p_k,
                              const amrex::Real p_k_minus_1,
