@@ -33,6 +33,7 @@ void Kessler::Update (amrex::MultiFab& cons,
      auto theta_arr  = mic_fab_vars[MicVar_Kess::theta]->array(mfi);
      auto qt_arr     = mic_fab_vars[MicVar_Kess::qt]->array(mfi);
      auto qp_arr     = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
+     auto qn_arr     = mic_fab_vars[MicVar_Kess::qcl]->array(mfi);
 
      auto qgraup_arr= qgraup_mf.array(mfi);
 
@@ -44,6 +45,7 @@ void Kessler::Update (amrex::MultiFab& cons,
        states_arr(i,j,k,RhoTheta_comp) = rho_arr(i,j,k)*theta_arr(i,j,k);
        states_arr(i,j,k,RhoQ1_comp)    = rho_arr(i,j,k)*qt_arr(i,j,k);
        states_arr(i,j,k,RhoQ2_comp)    = rho_arr(i,j,k)*qp_arr(i,j,k);
+       states_arr(i,j,k,RhoScalar_comp)    = rho_arr(i,j,k)*qn_arr(i,j,k);
 
        // Graupel == precip total - rain - snow (but must be >= 0)
        qgraup_arr(i,j,k)  = 0.0;//

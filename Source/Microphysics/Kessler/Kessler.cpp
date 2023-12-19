@@ -203,7 +203,7 @@ void Kessler::AdvanceKessler() {
         if(std::fabs(dq_sed) < 1e-14)dq_sed = 0.0;
         //dq_sed = 0.0;
 
-         qt_array(i,j,k) = qt_array(i,j,k) + dq_rain_to_vapor - dq_clwater_to_rain;
+         qt_array(i,j,k) = qt_array(i,j,k) - dq_vapor_to_clwater + dq_clwater_to_vapor;
          qp_array(i,j,k) = qp_array(i,j,k) + dq_sed + dq_clwater_to_rain - dq_rain_to_vapor;
          qn_array(i,j,k) = qn_array(i,j,k) + dq_vapor_to_clwater - dq_clwater_to_vapor - dq_clwater_to_rain;
 

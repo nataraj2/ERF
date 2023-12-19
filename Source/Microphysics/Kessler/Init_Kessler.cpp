@@ -139,8 +139,8 @@ void Kessler::Init (const MultiFab& cons_in, MultiFab& qmoist,
        theta_array(i,j,k) = states_array(i,j,k,RhoTheta_comp)/states_array(i,j,k,Rho_comp);
        qt_array(i,j,k)    = states_array(i,j,k,RhoQ1_comp)/states_array(i,j,k,Rho_comp);
        qp_array(i,j,k)    = states_array(i,j,k,RhoQ2_comp)/states_array(i,j,k,Rho_comp);
-       qn_array(i,j,k)    = qc_array(i,j,k) + qi_array(i,j,k);
-       qv_array(i,j,k)    = qv_array_from_moist(i,j,k);
+       qn_array(i,j,k)    = states_array(i,j,k,RhoScalar_comp)/states_array(i,j,k,Rho_comp);
+       qv_array(i,j,k)    = qt_array(i,j,k);
        temp_array(i,j,k)  = getTgivenRandRTh(states_array(i,j,k,Rho_comp),states_array(i,j,k,RhoTheta_comp), qv_array(i,j,k));
        pres_array(i,j,k)  = getPgivenRTh(states_array(i,j,k,RhoTheta_comp))/100.;
      });
