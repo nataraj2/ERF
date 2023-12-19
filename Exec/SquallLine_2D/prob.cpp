@@ -371,12 +371,10 @@ Problem::init_custom_pert (
     state(i, j, k, RhoTheta_comp) = rho*theta_total - rho_back*t[k]*(1.0 + (R_v/R_d)*q_v_back);// rho*d_t[k]*(1.0 + R_v_by_R_d*q_v_hot);
     state(i, j, k, Rho_comp)      = rho - rho_back*(1.0 + q_v_back);
 
-    // Set scalar = 0 everywhere
-    state(i, j, k, RhoScalar_comp) = rho*scalar;
-
     // mean states
     state(i, j, k, RhoQ1_comp) = rho*q_v_hot;
     state(i, j, k, RhoQ2_comp) = 0.0;
+    state(i, j, k, RhoScalar_comp) = 0.0;
     qv(i, j, k) = q_v_hot;
     qc(i, j, k) = 0.0;
     qi(i, j, k) = 0.0;
