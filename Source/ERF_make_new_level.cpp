@@ -62,6 +62,7 @@ void ERF::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
     // Microphysics
     // *******************************************************************************************
     int q_size  = micro.Get_Qmoist_Size();
+	std::cout << "q_size is " << q_size << "\n";
     qmoist[lev].resize(q_size);
     micro.Define(lev, solverChoice);
     if (solverChoice.moisture_type != MoistureType::None)
@@ -69,7 +70,9 @@ void ERF::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
         micro.Init(lev, vars_new[lev][Vars::cons], grids[lev], Geom(lev), 0.0); // dummy dt value
     }
     for (int mvar(0); mvar<qmoist[lev].size(); ++mvar) {
+		std::cout << "mvar is " << mvar << "\n";
         qmoist[lev][mvar] = micro.Get_Qmoist_Ptr(lev,mvar);
+		std::cout << "Reaching here" << "\n";
     }
 
     // ********************************************************************************************

@@ -41,6 +41,9 @@ amrex::Real erf_esati (amrex::Real t) {
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real erf_esatw (amrex::Real t) {
+
+	return exp(34.494 - 4924.99/(t - 273.15 + 237.1))/std::pow(t - 273.15 + 105.0,1.57)/100.0;
+
     amrex::Real const a0 = 6.105851;
     amrex::Real const a1 = 0.4440316;
     amrex::Real const a2 = 0.1430341e-1;

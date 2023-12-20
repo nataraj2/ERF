@@ -83,16 +83,21 @@ AMREX_GPU_HOST_DEVICE
 Real compute_temperature (const Real p_b)
 {
 
-	Real T_b = 200.0; // Initial guess
+	Real T_b = 200.0, delta_T; // Initial guess
 	for(int iter=0;iter<20;iter++)
     {
         Real F         = compute_F_for_temp(T_b, p_b, 0.02);
         Real F_plus_dF = compute_F_for_temp(T_b+1e-10, p_b, 0.02);
         Real F_prime   = (F_plus_dF - F)/1e-10;
-        Real delta_T = -F/F_prime;
+        delta_T = -F/F_prime;
 		//std::cout << "delta T is " << delta_T << "\n";
         T_b = T_b + delta_T;
     }
+
+	if(std::fabs(delta_T) > 1e-8){
+		std::cout << "Newton Raphson for temperature could not converge" << delta_T <<"\n";
+		exit(0);
+	}
 
 	//std::cout << "T_b is " << T_b << "\n";
 	//exit(0);
@@ -163,14 +168,21 @@ Real Problem::compute_p_k (Real &p_k, const Real p_k_minus_1, Real &theta_k, Rea
                   Real& T_dp, Real& T_b, const Real dz, const Real z, const Real rho_k_minus_1)
 {
 
+	Real delta_p_k;
+	
     for(int iter=0;iter<20;iter++)
     {
         Real F         = compute_F(p_k, p_k_minus_1, theta_k, rho_k, q_v_k, T_dp, T_b, dz, z, rho_k_minus_1);
         Real F_plus_dF = compute_F(p_k+1e-10, p_k_minus_1, theta_k, rho_k, q_v_k, T_dp, T_b, dz, z, rho_k_minus_1);
         Real F_prime   = (F_plus_dF - F)/1e-10;
-        Real delta_p_k = -F/F_prime;
+        delta_p_k = -F/F_prime;
         p_k            = p_k + delta_p_k;
     }
+
+	if(std::fabs(delta_p_k) > 1e-8){
+		std::cout << "Newon Raphson for pressure could not converge" << delta_p_k << "\n";
+		exit(0);
+	}
 
 	std::cout << "Value of temperature is " << T_b << "\n";	
 	//exit(0);
@@ -347,8 +359,8 @@ Problem::init_custom_pert (
 
     Real height = parms.height;
     Real z_tr = parms.z_tr;
-
-  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+amrex::ParallelForRNG(bx, [=, parms=parms] AMREX_GPU_DEVICE(int i, int j, int k, const amrex::RandomEngine& engine)
+  //amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
   {
     // Geometry (note we must include these here to get the data on device)
     const auto prob_lo         = geomdata.ProbLo();
@@ -370,9 +382,11 @@ Problem::init_custom_pert (
         scalar = 0.0;
     }
 
-    theta_total = theta_back[k]*(delta_theta/300.0 + 1);
-    Real T 		= compute_temperature_from_theta(theta_total, p_back[k]); // The bubble is pressure matched with the background
-    rho         = p_back[k]/(R_d*T*(1.0 + (R_v/R_d)*q_v_back[k]));
+    theta_total  = theta_back[k]*(delta_theta/300.0 + 1);
+    Real T 		 = compute_temperature_from_theta(theta_total, p_back[k]); // The bubble is pressure matched with the background
+    rho          = p_back[k]/(R_d*T*(1.0 + (R_v/R_d)*q_v_back[k]));
+	RH = compute_relative_humidity();
+    Real q_v_hot     = vapor_mixing_ratio(p_back[k], T, RH);   
 
     // Compute background quantities
     Real T_back   = compute_temperature_from_theta(theta_back[k], p_back[k]);
@@ -384,10 +398,11 @@ Problem::init_custom_pert (
 
     // Set scalar = 0 everywhere
     state(i, j, k, RhoScalar_comp) = rho*theta_back[k];
+    //state(i, j, k, RhoScalar_comp) = rho*(320.0 - compute_F_for_temp(T_back, p_back[k], 0.02));
 
     // mean states
-    state(i, j, k, RhoQ1_comp) = rho*q_v_back[k];
-    state(i, j, k, RhoQ2_comp) = rho*(0.02 - q_v_back[k]);
+    state(i, j, k, RhoQ1_comp) = rho*q_v_hot;
+    state(i, j, k, RhoQ2_comp) = rho*(0.02 - q_v_hot);
     qv(i, j, k) = q_v_back[k];
     qc(i, j, k) = 0.02 - q_v_back[k];
     qi(i, j, k) = 0.0;

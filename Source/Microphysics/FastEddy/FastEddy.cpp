@@ -49,20 +49,23 @@ void FastEddy::AdvanceFE ()
             //Real fac = qsat*4093.0*L_v/(Cp_d*std::pow(tabs_array(i,j,k)-36.0,2));
             Real fac = qsat*L_v*L_v/(Cp_d*R_v*tabs_array(i,j,k)*tabs_array(i,j,k));
 
+				//std::cout << "qv and qsat are" << qv_array(i,j,k) << " " << qsat << "\n";
             // If water vapor content exceeds saturation value, then vapor condenses to waterm and latent heat is released, increasing temperature
-            if(qv_array(i,j,k) > qsat){
-                dq_vapor_to_clwater = std::min(qv_array(i,j,k), (qv_array(i,j,k)-qsat)/(1.0 + fac));
+            if(qv_array(i,j,k) > qsat and std::fabs(qv_array(i,j,k) - qsat) > 1e-10 ){
+				//std::cout << "here ....." << qv_array(i,j,k) - qsat << "\n";
+                dq_vapor_to_clwater = 0.0;//std::min(qv_array(i,j,k), (qv_array(i,j,k)-qsat)/(1.0 + fac));
             }
             // If water vapor is less than the satruated value, then the cloud water can evaporate, leading to evaporative cooling and
             // reducing temperature
-            if(qv_array(i,j,k) < qsat and qc_array(i,j,k) > 0.0){
-                dq_clwater_to_vapor = std::min(qc_array(i,j,k), (qsat - qv_array(i,j,k))/(1.0 + fac));
+            if(qv_array(i,j,k) < qsat and qc_array(i,j,k) > 0.0 and std::fabs(qv_array(i,j,k) - qsat) > 1e-10 ){
+				//std::cout << "here ....." << qv_array(i,j,k) - qsat << "\n";
+                dq_clwater_to_vapor = 0.0;//std::min(qc_array(i,j,k), (qsat - qv_array(i,j,k))/(1.0 + fac));
             }
 
             qv_array(i,j,k) = qv_array(i,j,k) - dq_vapor_to_clwater + dq_clwater_to_vapor;
             qc_array(i,j,k) = qc_array(i,j,k) + dq_vapor_to_clwater - dq_clwater_to_vapor;
 
-            theta_array(i,j,k) = theta_array(i,j,k) + theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*(dq_vapor_to_clwater - dq_clwater_to_vapor);
+            theta_array(i,j,k) = theta_array(i,j,k) ;//+ theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*(dq_vapor_to_clwater - dq_clwater_to_vapor);
 
             qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
             qc_array(i,j,k) = std::max(0.0, qc_array(i,j,k));
