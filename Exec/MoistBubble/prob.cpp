@@ -222,7 +222,6 @@ Problem::erf_init_dens_hse_moist (MultiFab& rho_hse,
 {
 
 
-    const Real prob_lo_z = geom.ProbLo()[2];
     const Real dz        = geom.CellSize()[2];
     const int khi        = geom.Domain().bigEnd()[2];
 
@@ -388,7 +387,7 @@ Problem::init_custom_pert (
         state(i, j, k, Rho_comp)      = rho - rho_back*(1.0 + parms.qt_init);
 
         // Set scalar = 0 everywhere
-        state(i, j, k, RhoScalar_comp) = rho*theta_back[k];
+        state(i, j, k, RhoScalar_comp) = rho*scalar;
         //state(i, j, k, RhoScalar_comp) = rho*(parms.eq_pot_temp - compute_F_for_temp(T_back, p_back[k]));
 
         // mean states
