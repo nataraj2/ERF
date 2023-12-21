@@ -50,12 +50,12 @@ void FastEddy::AdvanceFE ()
             Real fac = qsat*L_v*L_v/(Cp_d*R_v*tabs_array(i,j,k)*tabs_array(i,j,k));
 
             // If water vapor content exceeds saturation value, then vapor condenses to waterm and latent heat is released, increasing temperature
-            if(qv_array(i,j,k) > qsat and std::fabs(qv_array(i,j,k) - qsat) > 1e-10){
+            if(qv_array(i,j,k) > qsat){
                 dq_vapor_to_clwater = std::min(qv_array(i,j,k), (qv_array(i,j,k)-qsat)/(1.0 + fac));
             }
             // If water vapor is less than the satruated value, then the cloud water can evaporate, leading to evaporative cooling and
             // reducing temperature
-            if(qv_array(i,j,k) < qsat and qc_array(i,j,k) > 0.0 and std::fabs(qv_array(i,j,k) - qsat) > 1e-10){
+            if(qv_array(i,j,k) < qsat and qc_array(i,j,k) > 0.0){
                 dq_clwater_to_vapor = std::min(qc_array(i,j,k), (qsat - qv_array(i,j,k))/(1.0 + fac));
             }
 

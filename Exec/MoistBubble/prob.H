@@ -78,9 +78,9 @@ public:
 
     amrex::Real compute_theta (const amrex::Real T_b, const amrex::Real p_b);
 
-	amrex::Real compute_temperature (const amrex::Real p_b);
+    amrex::Real compute_temperature (const amrex::Real p_b);
 
-	amrex::Real compute_F_for_temp(const amrex::Real T_b, const amrex::Real p_b);
+    amrex::Real compute_F_for_temp(const amrex::Real T_b, const amrex::Real p_b);
 
     amrex::Real compute_p_k (amrex::Real& p_k,
                              const amrex::Real p_k_minus_1,

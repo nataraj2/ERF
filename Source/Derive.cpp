@@ -103,8 +103,9 @@ erf_dertemp (const amrex::Box& bx,
     {
         const amrex::Real rho = dat(i, j, k, Rho_comp);
         const amrex::Real rhotheta = dat(i, j, k, RhoTheta_comp);
+        const amrex::Real qv = dat(i, j, k, RhoQ1_comp)/dat(i, j, k, Rho_comp);
         AMREX_ALWAYS_ASSERT(rhotheta > 0.);
-        tfab(i,j,k) = getTgivenRandRTh(rho,rhotheta);
+        tfab(i,j,k) = getTgivenRandRTh(rho,rhotheta,qv);
     });
 }
 

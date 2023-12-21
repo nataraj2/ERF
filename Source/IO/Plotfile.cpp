@@ -268,7 +268,7 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
             mf_comp ++;
         }
 
- 		if (containerHasElement(plot_var_names, "eq_pot_temp"))
+         if (containerHasElement(plot_var_names, "eq_pot_temp"))
         {
 #ifdef _OPENMP
 #pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
@@ -280,12 +280,12 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
                 const Array4<Real const>& S_arr = vars_new[lev][Vars::cons].const_array(mfi);
                 ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                     Real qv = (use_moisture) ? S_arr(i,j,k,RhoQ1_comp)/S_arr(i,j,k,Rho_comp) : 0.0;
-					Real qc = (use_moisture) ? S_arr(i,j,k,RhoQ2_comp)/S_arr(i,j,k,Rho_comp) : 0.0;
-					Real T = getTgivenRandRTh(S_arr(i,j,k,Rho_comp), S_arr(i,j,k,RhoTheta_comp), qv);
-					Real pressure = getPgivenRTh(S_arr(i,j,k,RhoTheta_comp), qv);
-					Real c_pl = 4200.0;
-				    Real fac = Cp_d + c_pl*(qv+ qc);
-					Real pv = erf_esatw(T)*100.0;					
+                    Real qc = (use_moisture) ? S_arr(i,j,k,RhoQ2_comp)/S_arr(i,j,k,Rho_comp) : 0.0;
+                    Real T = getTgivenRandRTh(S_arr(i,j,k,Rho_comp), S_arr(i,j,k,RhoTheta_comp), qv);
+                    Real pressure = getPgivenRTh(S_arr(i,j,k,RhoTheta_comp), qv);
+                    Real c_pl = 4200.0;
+                    Real fac = Cp_d + c_pl*(qv+ qc);
+                    Real pv = erf_esatw(T)*100.0;
 
                     derdat(i, j, k, mf_comp) = T*std::pow((pressure - pv)/1e5, -R_d/fac)*std::exp(L_v*qv/(fac*T)) ;
                 });
