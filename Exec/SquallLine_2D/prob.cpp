@@ -1,4 +1,5 @@
 #include "prob.H"
+#include "Microphysics_Utils.H"
 
 using namespace amrex;
 
@@ -42,13 +43,15 @@ AMREX_GPU_HOST_DEVICE
 Real compute_saturation_pressure (const Real T_b)
 {
 
-    Real p_s = exp(34.494 - 4924.99/(T_b - 273.15 + 237.1))/std::pow(T_b - 273.15 + 105.0,1.57);
+	return erf_esatw(T_b)*100.0;
+
+    //Real p_s = exp(34.494 - 4924.99/(T_b - 273.15 + 237.1))/std::pow(T_b - 273.15 + 105.0,1.57);
 
     //Real T = T_b - 273.15;
 
     //Real p_s = 0.61121e3*exp((18.678 - T/234.5)*(T/(257.14 + T)));
 
-    return p_s;
+    //return p_s;
 }
 
 AMREX_FORCE_INLINE

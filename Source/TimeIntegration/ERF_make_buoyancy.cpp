@@ -166,9 +166,6 @@ void make_buoyancy (Vector<MultiFab>& S_data,
             // Base state density
             const Array4<const Real>& r0_arr = r0->const_array(mfi);
 
-            const Array4<const Real> & qv_data    = qvapor.array(mfi);
-            const Array4<const Real> & qc_data    = qcloud.array(mfi);
-            const Array4<const Real> & qi_data    = qice.array(mfi);
 
             amrex::ParallelFor(tbz, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {

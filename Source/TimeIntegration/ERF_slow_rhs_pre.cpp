@@ -560,7 +560,7 @@ void erf_slow_rhs_pre (int level, int finest_level,
 #else
             Real qv_for_p = 0.;
 #endif
-            pp_arr(i,j,k) = getPgivenRTh(cell_data(i,j,k,RhoTheta_comp),qv_for_p) - p0_arr(i,j,k);
+            pp_arr(i,j,k) = getPgivenRTh(cell_data(i,j,k,RhoTheta_comp), cell_data(i,j,k,RhoQ1_comp) / cell_data(i,j,k,Rho_comp)) - p0_arr(i,j,k);
         });
         } // end profile
 

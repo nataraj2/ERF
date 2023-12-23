@@ -13,14 +13,12 @@ using namespace amrex;
  */
 void Kessler::AdvanceKessler() {
 
-  auto qt   = mic_fab_vars[MicVar_Kess::qt];
+  auto qv   = mic_fab_vars[MicVar_Kess::qv];
   auto qp   = mic_fab_vars[MicVar_Kess::qp];
   auto qn   = mic_fab_vars[MicVar_Kess::qn];
   auto tabs = mic_fab_vars[MicVar_Kess::tabs];
 
-  auto qcl   = mic_fab_vars[MicVar_Kess::qcl];
   auto theta  = mic_fab_vars[MicVar_Kess::theta];
-  auto qv    = mic_fab_vars[MicVar_Kess::qv];
   auto rho   = mic_fab_vars[MicVar_Kess::rho];
 
   auto dz = m_geom.CellSize(2);
@@ -68,54 +66,15 @@ void Kessler::AdvanceKessler() {
 
   Real dtn = dt;
 
- /*for ( MFIter mfi(*tabs,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-
-     auto qn_array   = mic_fab_vars[MicVar_Kess::qn]->array(mfi);
-     auto qt_array   = mic_fab_vars[MicVar_Kess::qt]->array(mfi);
-     auto qp_array   = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
-     auto qv_array   = mic_fab_vars[MicVar_Kess::qv]->array(mfi);
-
-    const auto& box3d = mfi.tilebox();
-
-    ParallelFor(box3d, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-
-        qt_array(i,j,k) = std::max(0.0, qt_array(i,j,k));
-        qp_array(i,j,k) = std::max(0.0, qp_array(i,j,k));
-        qn_array(i,j,k) = std::max(0.0, qn_array(i,j,k));
-
-         if(qt_array(i,j,k) == 0.0){
-            qv_array(i,j,k) = 0.0;
-            qn_array(i,j,k) = 0.0;
-        }
-    });
-  }
-
-
-    for ( MFIter mfi(*tabs,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        auto qp_array   = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
-        auto rho_array  = mic_fab_vars[MicVar_Kess::rho]->array(mfi);
-
-        const auto& box3d = mfi.tilebox();
-         auto fz_array  = fz.array(mfi);
-
-        ParallelFor(box3d, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-            Real dq_sed = 1.0/rho_array(i,j,k)*(fz_array(i,j,k+1) - fz_array(i,j,k))/dz*dtn;
-            qp_array(i,j,k) = qp_array(i,j,k) + dq_sed;
-        });
-    }*/
-
-
-
-
-  // get the temperature, dentisy, theta, qt and qp from input
+ 
+  // get the temperature, dentisy, theta, qv and qp from input
   for ( MFIter mfi(*tabs,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
      auto tabs_array = mic_fab_vars[MicVar_Kess::tabs]->array(mfi);
      auto qn_array   = mic_fab_vars[MicVar_Kess::qn]->array(mfi);
-     auto qt_array   = mic_fab_vars[MicVar_Kess::qt]->array(mfi);
+     auto qv_array   = mic_fab_vars[MicVar_Kess::qv]->array(mfi);
      auto qp_array   = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
 
      auto theta_array = theta->array(mfi);
-     auto qv_array    = qv->array(mfi);
      auto rho_array  = mic_fab_vars[MicVar_Kess::rho]->array(mfi);
 
      const auto& box3d = mfi.tilebox();
@@ -127,11 +86,11 @@ void Kessler::AdvanceKessler() {
 
      ParallelFor(box3d, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
 
-        qt_array(i,j,k) = std::max(0.0, qt_array(i,j,k));
+        qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
         qp_array(i,j,k) = std::max(0.0, qp_array(i,j,k));
         qn_array(i,j,k) = std::max(0.0, qn_array(i,j,k));
 
-        if(qt_array(i,j,k) == 0.0){
+        if(qv_array(i,j,k) == 0.0){
             qv_array(i,j,k) = 0.0;
             qn_array(i,j,k) = 0.0;
         }
@@ -203,13 +162,13 @@ void Kessler::AdvanceKessler() {
         if(std::fabs(dq_sed) < 1e-14)dq_sed = 0.0;
         //dq_sed = 0.0;
 
-         qt_array(i,j,k) = qt_array(i,j,k) - dq_vapor_to_clwater + dq_clwater_to_vapor;
+         qv_array(i,j,k) = qv_array(i,j,k) - dq_vapor_to_clwater + dq_clwater_to_vapor + dq_rain_to_vapor;
          qp_array(i,j,k) = qp_array(i,j,k) + dq_sed + dq_clwater_to_rain - dq_rain_to_vapor;
          qn_array(i,j,k) = qn_array(i,j,k) + dq_vapor_to_clwater - dq_clwater_to_vapor - dq_clwater_to_rain;
 
          theta_array(i,j,k) = theta_array(i,j,k) + theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*(dq_vapor_to_clwater - dq_clwater_to_vapor - dq_rain_to_vapor);
 
-         qt_array(i,j,k) = std::max(0.0, qt_array(i,j,k));
+         qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
          qp_array(i,j,k) = std::max(0.0, qp_array(i,j,k));
          qn_array(i,j,k) = std::max(0.0, qn_array(i,j,k));
 
