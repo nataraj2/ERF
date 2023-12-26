@@ -27,8 +27,8 @@ void Kessler::Update (amrex::MultiFab& cons,
      auto rho_arr    = mic_fab_vars[MicVar_Kess::rho]->array(mfi);
      auto theta_arr  = mic_fab_vars[MicVar_Kess::theta]->array(mfi);
      auto qv_arr     = mic_fab_vars[MicVar_Kess::qv]->array(mfi);
-     auto qp_arr     = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
      auto qn_arr     = mic_fab_vars[MicVar_Kess::qn]->array(mfi);
+     auto qp_arr     = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
 
 
      const auto& box3d = mfi.tilebox();
