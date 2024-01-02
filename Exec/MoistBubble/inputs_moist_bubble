@@ -1,5 +1,5 @@
 # ------------------  INPUTS TO MAIN PROGRAM  -------------------
-max_step = 9000
+max_step = 4000
 stop_time = 90000.0
 
 amrex.fpe_trap_invalid = 1
@@ -7,9 +7,9 @@ amrex.fpe_trap_invalid = 1
 fabarray.mfiter_tile_size = 2048 1024 2048
 
 # PROBLEM SIZE & GEOMETRY
-geometry.prob_lo     = -25000.   0.    0.
-geometry.prob_hi     =  25000. 400. 20000.
-amr.n_cell           =  192    4    81    # dx=dy=dz=100 m
+geometry.prob_lo     =  0.     0.    0.
+geometry.prob_hi     =  12000. 400. 10000.
+amr.n_cell           =  100    4    100    # dx=dy=dz=100 m
 
 # periodic in x to match WRF setup
 # - as an alternative, could use symmetry at x=0 and outflow at x=25600
@@ -21,8 +21,8 @@ zhi.type = "Outflow"
 
 # TIME STEP CONTROL
 erf.use_native_mri = 1
-erf.fixed_dt       = 1.0      # fixed time step [s] -- Straka et al 1993
-erf.fixed_fast_dt  = 0.5     # fixed time step [s] -- Straka et al 1993
+erf.fixed_dt       = 0.25      # fixed time step [s] -- Straka et al 1993
+erf.fixed_fast_dt  = 0.125     # fixed time step [s] -- Straka et al 1993
 #erf.no_substepping  = 1
 
 # DIAGNOSTICS & VERBOSITY
@@ -36,12 +36,12 @@ amr.max_level       = 0       # maximum level number allowed
 # CHECKPOINT FILES
 amr.check_file      = chk        # root name of checkpoint file
 amr.check_int       = 1000       # number of timesteps between checkpoints
-#amr.restart         = chk09000
+#amr.restart         = chk04000
 
 # PLOTFILES
 erf.plot_file_1         = plt        # root name of plotfile
 erf.plot_int_1          = 100         # number of timesteps between plotfiles
-erf.plot_vars_1         = density rhotheta rhoQ1 rhoQ2 rhoQ3 x_velocity y_velocity z_velocity pressure theta temp qt qp qv qc qi scalar pert_dens
+erf.plot_vars_1         = density rhotheta rhoQ1 rhoQ2 x_velocity y_velocity z_velocity pressure theta temp scalar pert_dens eq_pot_temp
 
 # SOLVER CHOICE
 erf.use_gravity = true
@@ -59,24 +59,21 @@ erf.les_type = "None"
 erf.molec_diff_type = "ConstantAlpha"
 #erf.molec_diff_type = "Constant"
 erf.rho0_trans = 1.0 # [kg/m^3], used to convert input diffusivities
-erf.dynamicViscosity = 100.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
-erf.alpha_T = 100.0 # [m^2/s]
-erf.alpha_C = 100.0
+erf.dynamicViscosity = 0.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
+erf.alpha_T = 00.0 # [m^2/s]
+erf.alpha_C = 00.0
 
-erf.moisture_model = "Kessler"
+erf.moisture_model = "FastEddy"
 erf.use_moist_background = true
 
 erf.moistscal_horiz_adv_string = "Centered_2nd"
 erf.moistscal_vert_adv_string = "Centered_2nd"
 
 # PROBLEM PARAMETERS (optional)
-prob.z_tr = 12000.0
-prob.height = 1200.0
-prob.theta_0 = 300.0
-prob.theta_tr = 343.0
-prob.T_tr = 213.0
-prob.x_c = 0.0
-prob.z_c = 1500.0
-prob.x_r = 4000.0
-prob.z_r = 1500.0
-prob.theta_c = 3.0
+prob.x_c = 6000.0
+prob.z_c = 2000.0
+prob.x_r = 2000.0
+prob.z_r = 2000.0
+prob.theta_c = 2.0
+prob.qt_init = 0.02
+prob.eq_pot_temp = 320.0
