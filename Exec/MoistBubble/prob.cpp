@@ -398,8 +398,7 @@ Problem::init_custom_pert (
 
   // Set the x-velocity
   amrex::ParallelFor(xbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-    const amrex::Real z = prob_lo_z + (k+0.5) * dz;
-    x_vel(i,j,k) = 0.0*std::max(0.0, (2.5e3 - z)/2.5e3);
+    x_vel(i,j,k) = 0.0;
   });
 
   // Set the y-velocity

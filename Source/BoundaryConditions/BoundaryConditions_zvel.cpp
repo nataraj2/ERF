@@ -274,7 +274,7 @@ void ERFPhysBCFunct::impose_vertical_zvel_bcs (const Array4<Real>& dest_arr,
             if (bc_ptr_w[n].hi(2) == ERFBCType::ext_dir) {
                 dest_arr(i,j,k) = l_bc_extdir_vals_d[n][5];
             } else if (bc_ptr_w[n].hi(2) == ERFBCType::foextrap) {
-                dest_arr(i,j,k) =  dest_arr(i,j,dom_hi.z);
+                dest_arr(i,j,k) =     (4.0*dest_arr(i,j,dom_hi.z) - dest_arr(i,j,dom_hi.z-1))/3.0;
             } else if (bc_ptr_w[n].hi(2) == ERFBCType::reflect_even) {
                 dest_arr(i,j,k) =  dest_arr(i,j,kflip);
             } else if (bc_ptr_w[n].hi(2) == ERFBCType::reflect_odd) {
