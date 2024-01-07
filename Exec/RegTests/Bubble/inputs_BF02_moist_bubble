@@ -1,5 +1,5 @@
 # ------------------  INPUTS TO MAIN PROGRAM  -------------------
-max_step  = 2000
+max_step  = 1
 stop_time = 3600.0
 
 amrex.fpe_trap_invalid = 1
@@ -8,10 +8,10 @@ fabarray.mfiter_tile_size = 1024 1024 1024
 
 # PROBLEM SIZE & GEOMETRY
 geometry.prob_extent = 20000.0 312.5  10000.0
-amr.n_cell           = 256     4      128
+amr.n_cell           = 200     4      100
 geometry.is_periodic = 0 1 0
-xlo.type = "SlipWall"
-xhi.type = "SlipWall"    
+xlo.type = "Outflow"
+xhi.type = "Outflow"    
 zlo.type = "SlipWall"
 zhi.type = "SlipWall"
 
@@ -43,10 +43,10 @@ erf.use_gravity          = true
 erf.use_coriolis         = false
 erf.use_rayleigh_damping = false
     
-erf.dycore_horiz_adv_type    = "Upwind_3rd"
-erf.dycore_vert_adv_type     = "Upwind_3rd"
-erf.dryscal_horiz_adv_type   = "Upwind_3rd"
-erf.dryscal_vert_adv_type    = "Upwind_3rd"
+erf.dycore_horiz_adv_type    = "Centered_2nd"
+erf.dycore_vert_adv_type     = "Centered_2nd"
+erf.dryscal_horiz_adv_type   = "Centered_2nd"
+erf.dryscal_vert_adv_type    = "Centered_2nd"
 erf.moistscal_horiz_adv_type = "Upwind_3rd"
 erf.moistscal_vert_adv_type  = "Upwind_3rd"       
 
@@ -59,9 +59,9 @@ erf.use_moist_background = true
 
 erf.molec_diff_type  = "ConstantAlpha"
 erf.rho0_trans       = 1.0 # [kg/m^3], used to convert input diffusivities
-erf.dynamicViscosity = 1.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
-erf.alpha_T          = 1.0 # [m^2/s]
-erf.alpha_C          = 1.0
+erf.dynamicViscosity = 0.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
+erf.alpha_T          = 0.0 # [m^2/s]
+erf.alpha_C          = 0.0
 
 # INITIAL CONDITIONS
 #erf.init_type = "input_sounding"
@@ -77,6 +77,6 @@ prob.z_r    =  2000.0
 prob.T_0    =   300.0
 
 prob.do_moist_bubble = true
-prob.theta_pert  = 2.0
+prob.theta_pert  = 20.0
 prob.qt_init     = 0.02
 prob.eq_pot_temp = 320.0
