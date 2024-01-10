@@ -249,5 +249,49 @@ void ERFPhysBCFunct::impose_vertical_zvel_bcs (const Array4<Real>& dest_arr,
             }
         });
     }
+
+	  Box bx_zhi(bx);  bx_zhi.setSmall(2,dom_hi.z+1);
+
+        // Populate face values on z-boundaries themselves only if EXT_DIR
+        Box bx_zhi_face(bx); bx_zhi_face.setSmall(2,dom_hi.z+1); bx_zhi_face.setBig(2,dom_hi.z+1);
+
+    amrex::Gpu::DeviceVector<BCRec> bcrs_w_d(ncomp);
+#ifdef AMREX_USE_GPU
+    Gpu::htod_memcpy_async(bcrs_w_d.data(), bcrs_w.data(), sizeof(BCRec));
+#else
+    std::memcpy(bcrs_w_d.data(), bcrs_w.data(), sizeof(BCRec));
+#endif
+    const amrex::BCRec* bc_ptr_w = bcrs_w_d.data();
+
+    //std::cout << "lo and hi vals are " << bx_zhi.loVect()[2] << " " << bx_zhi.hiVect()[2]  << " " << dom_hi.z << "\n";
+    //exit(0);
+
+
+
+
+	ParallelFor(
+          bx_zhi, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) {
+            int kflip =  2*(dom_hi.z + 1) - k;
+            if (bc_ptr_w[n].hi(2) == ERFBCType::ext_dir) {
+                dest_arr(i,j,k) = l_bc_extdir_vals_d[n][5];
+            } else if (bc_ptr_w[n].hi(2) == ERFBCType::foextrap) {
+                dest_arr(i,j,k) = dest_arr(i,j,dom_hi.z);
+            } else if (bc_ptr_w[n].hi(2) == ERFBCType::reflect_even) {
+                dest_arr(i,j,k) =  dest_arr(i,j,kflip);
+            } else if (bc_ptr_w[n].hi(2) == ERFBCType::reflect_odd) {
+                dest_arr(i,j,k) = -dest_arr(i,j,kflip);
+            }
+
+          },
+          bx_zhi_face, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) {
+            if (bc_ptr_w[n].hi(2) == ERFBCType::ext_dir) {
+                if (l_use_terrain)
+                    dest_arr(i,j,k) = WFromOmega(i,j,k,l_bc_extdir_vals_d[n][5],xvel_arr,yvel_arr,z_phys_nd,dxInv);
+                else
+                    dest_arr(i,j,k) = l_bc_extdir_vals_d[n][5];
+            }
+          }
+        );
+
     Gpu::streamSynchronize();
 }

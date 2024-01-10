@@ -67,6 +67,10 @@ void ERFPhysBCFunct::impose_lateral_xvel_bcs (const Array4<Real>& dest_arr,
                 if (bc_ptr[n].lo(0) == ERFBCType::ext_dir) {
                     dest_arr(i,j,k) = l_bc_extdir_vals_d[n][0];
                 } else if (bc_ptr[n].lo(0) == ERFBCType::foextrap) {
+                    //dest_arr(dom_lo.x,j,k) =  dest_arr(dom_lo.x+1,j,k);
+					if(j==2 and k==20){
+						std::cout  << "Values at i = " << dom_lo.x << " " << dest_arr(dom_lo.x,j,k) << "\n"; 
+					}
                     dest_arr(i,j,k) =  dest_arr(dom_lo.x,j,k);
                 } else if (bc_ptr[n].lo(0) == ERFBCType::reflect_even) {
                     dest_arr(i,j,k) =  dest_arr(iflip,j,k);
@@ -87,8 +91,8 @@ void ERFPhysBCFunct::impose_lateral_xvel_bcs (const Array4<Real>& dest_arr,
                     dest_arr(i,j,k) = l_bc_extdir_vals_d[n][3];
                 } else if (bc_ptr[n].hi(0) == ERFBCType::foextrap) {
                     //dest_arr(dom_hi.x+1,j,k) =  dest_arr(dom_hi.x,j,k);
-					if(j==2 and k==10){
-						std::cout  << "Values are " << i << " " << dest_arr(dom_hi.x-1,j,k) << " " << dest_arr(dom_hi.x,j,k) << " " << dest_arr(dom_hi.x+1,j,k) << "\n"; 
+					if(j==2 and k==20){
+						std::cout  << "Values at i = " << dom_hi.x+1 << " " << dest_arr(dom_hi.x+1,j,k) << "\n"; 
 					}
                     dest_arr(i,j,k) =  dest_arr(dom_hi.x+1,j,k);
                 } else if (bc_ptr[n].hi(0) == ERFBCType::reflect_even) {
