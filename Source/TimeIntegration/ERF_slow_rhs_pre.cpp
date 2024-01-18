@@ -844,6 +844,7 @@ void erf_slow_rhs_pre (int level, int finest_level,
               rho_u_rhs(i, j, k) += (-gpx - abl_pressure_grad[0]) / (1.0 + q)
                                     + rho_u_face * abl_geo_forcing[0];
 				}
+				
 
               // Add Coriolis forcing (that assumes east is +x, north is +y)
               if (use_coriolis)
