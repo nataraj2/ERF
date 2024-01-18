@@ -109,9 +109,7 @@ AdvectionSrcForMom (const Box& bxx, const Box& bxy, const Box& bxz,
 				}
 
 				
-                rho_u_rhs(i, j, k) = -advectionSrc;
-
-				
+                rho_u_rhs(i, j, k) = -advectionSrc;			
             },
             [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
