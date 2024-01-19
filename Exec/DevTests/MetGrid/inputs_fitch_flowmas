@@ -1,5 +1,5 @@
 # ------------------  INPUTS TO MAIN PROGRAM  -------------------
-max_step = 100
+max_step = 10
 
 amrex.fpe_trap_invalid = 1
 amrex.fpe_trap_zero = 1
@@ -39,7 +39,7 @@ erf.check_int       = 1          # number of timesteps between checkpoints
 # PLOTFILES
 erf.plot_file_1     = plt        # prefix of plotfile name
 erf.plot_int_1      = 1          # number of timesteps between plotfiles
-erf.plot_vars_1     = qv Rhoqv density dens_hse rhoadv_0 x_velocity y_velocity z_velocity pressure temp theta z_phys mapfac pres_hse pert_pres KE QKE
+erf.plot_vars_1     = qv Rhoqv density dens_hse rhoadv_0 rhotheta x_velocity y_velocity z_velocity pressure temp theta z_phys mapfac pres_hse pert_pres KE QKE
 
 # SOLVER CHOICE
 erf.alpha_T = 1.0
@@ -47,10 +47,10 @@ erf.alpha_C = 1.0
 erf.use_gravity = true
 
 erf.molec_diff_type = "None"
-erf.les_type        = "Smagorinsky"
+erf.les_type        = "None"
 erf.Cs              = 0.1
 
-erf.moisture_model = "Kessler"
+erf.moisture_model = "None"
 
 # INITIALIZATION WITH ATM DATA
 erf.metgrid_bdy_width = 5

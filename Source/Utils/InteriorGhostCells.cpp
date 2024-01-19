@@ -124,7 +124,9 @@ wrfbdy_compute_interior_ghost_rhs (const std::string& init_type,
 
     // Relaxation constants
     Real F1 = 1./(10.*delta_t);
-    Real F2 = 1./(50.*delta_t);
+    Real F2 = 0.0;//1./(50.*delta_t);
+
+	std::cout << " Delta t is " << delta_t << "\n";
 
     // Time interpolation
     Real dT = bdy_time_interval;
@@ -534,7 +536,7 @@ fine_compute_interior_ghost_rhs (const Real& time,
 
     // Relaxation constants
     Real F1 = 1./(10.*delta_t);
-    Real F2 = 1./(50.*delta_t);
+    Real F2 = 0.0;//1./(50.*delta_t);
 
     // Vector of MFs to hold data (dm differs w/ fine patch)
     Vector<MultiFab> fmf_p_v;
