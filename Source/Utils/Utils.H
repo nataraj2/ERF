@@ -213,7 +213,6 @@ wrfbdy_compute_laplacian_relaxation (const amrex::Real& delta_t,
             amrex::Real delta_yp = arr_xlo(i  ,j+1,k,n) - d_jp1;
             amrex::Real delta_ym = arr_xlo(i  ,j-1,k,n) - d_jm1;
             amrex::Real Laplacian = delta_xp + delta_xm + delta_yp + delta_ym - 4.0*delta;
-
             rhs_arr(i,j,k,n+icomp) += (F1*delta - F2*Laplacian) * Factor;
         }
     },
@@ -285,7 +284,6 @@ wrfbdy_compute_laplacian_relaxation (const amrex::Real& delta_t,
             amrex::Real delta_yp = arr_yhi(i  ,j+1,k,n) - d_jp1;
             amrex::Real delta_ym = arr_yhi(i  ,j-1,k,n) - d_jm1;
             amrex::Real Laplacian = delta_xp + delta_xm + delta_yp + delta_ym - 4.0*delta;
-
             rhs_arr(i,j,k,n+icomp) += (F1*delta - F2*Laplacian) * Factor;
         }
     });
