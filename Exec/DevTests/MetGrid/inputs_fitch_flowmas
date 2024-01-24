@@ -58,7 +58,7 @@ erf.moisture_model = "None"
 #erf.pbl_type        = "MYNN2.5"
 
 # INITIALIZATION WITH ATM DATA
-erf.metgrid_bdy_width = 10
+erf.metgrid_bdy_width = 20
 erf.metgrid_bdy_set_width = 1
 erf.init_type      = "metgrid"
 erf.nc_init_file_0 = "met_em.d01.2015-04-01_00_00_00.nc" "met_em.d01.2015-04-01_08_00_00.nc"
