@@ -146,7 +146,7 @@ void ERF::print_tpls(std::ostream& out)
     amrex::Vector<std::string> tpls;
 
 #ifdef ERF_USE_NETCDF
-    tpls.push_back(std::string("NetCDF    ") + NC_VERSION);
+    //tpls.push_back(std::string("NetCDF    ") + NC_VERSION);
 #endif
 #ifdef AMREX_USE_SUNDIALS
     tpls.push_back(std::string("SUNDIALS     ") + SUNDIALS_VERSION);
