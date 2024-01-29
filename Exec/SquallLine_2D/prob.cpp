@@ -372,7 +372,7 @@ Problem::init_custom_pert (
     state(i, j, k, Rho_comp)      = rho - rho_back*(1.0 + q_v_back);
 
     // Set scalar = 0 everywhere
-    state(i, j, k, RhoScalar_comp) = rho*scalar;
+    state(i, j, k, RhoScalar_comp) = rho*t[k];
 
     // mean states
     if (use_moisture) {
