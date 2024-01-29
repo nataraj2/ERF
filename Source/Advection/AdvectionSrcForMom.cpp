@@ -101,7 +101,7 @@ AdvectionSrcForMom (const Box& bxx, const Box& bxy, const Box& bxz,
                                   + (yflux_hi - yflux_lo) * dyInv * mfsq
                                   + (zflux_hi - zflux_lo) * dzInv;
 
-				if(i == 192){
+				if(i == 202){
 					advectionSrc = rho_u(i,j,k)/(u(i,j,k) + 1e-10)*std::max(u(i,j,k) + 30.0, 0.0)*(u(i,j,k) - u(i-1,j,k)) * dxInv; 
 				}
 				if(i == 0){
