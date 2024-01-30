@@ -840,10 +840,10 @@ void erf_slow_rhs_pre (int level, int finest_level,
                              +cell_prim(i,j,k,PrimQ2_comp) + cell_prim(i-1,j,k,PrimQ2_comp) );
               }
 				
-				if(i!=202 and i!=0){
+				//if(i!=202 and i!=0){
               rho_u_rhs(i, j, k) += (-gpx - abl_pressure_grad[0]) / (1.0 + q)
                                     + rho_u_face * abl_geo_forcing[0];
-				}
+				//}
 				
 
               // Add Coriolis forcing (that assumes east is +x, north is +y)
