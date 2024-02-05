@@ -38,7 +38,7 @@ read_from_metgrid (int lev, const Box& domain, const std::string& fname,
             flag_lmask = 0; //ncf.get_attr("FLAG_LANDMASK", attr); flag_lmask = attr[0];
             
             /*ncf.get_attr("FLAG_MAPFAC_U", attr); flag_msfu  = attr[0];
-            ncf.get_attr("FLAG_MAPFAC_V", attr); flag_msfv  = attr[0];
+	    ncf.get_attr("FLAG_MAPFAC_V", attr); flag_msfv  = attr[0];
             ncf.get_attr("FLAG_MAPFAC_M", attr); flag_msfm  = attr[0];
             ncf.get_attr("FLAG_HGT_M", attr);    flag_hgt   = attr[0];
             ncf.get_attr("FLAG_SST", attr);      flag_sst   = attr[0];

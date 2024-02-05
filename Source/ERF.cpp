@@ -28,10 +28,6 @@ Vector<AMRErrorTag> ERF::ref_tags;
 
 SolverChoice ERF::solverChoice;
 
-#ifdef ERF_USE_PARTICLES
-ParticleData ERF::particleData;
-#endif
-
 // Time step control
 amrex::Real ERF::cfl           =  0.8;
 amrex::Real ERF::fixed_dt      = -1.0;
@@ -121,6 +117,11 @@ ERF::ERF ()
 #if defined(ERF_USE_RRTMGP)
     qheating_rates.resize(nlevs_max);
 #endif
+
+    // NOTE: size lsm before readparams (chooses the model at all levels)
+    lsm.ReSize(nlevs_max);
+    lsm_data.resize(nlevs_max);
+    lsm_flux.resize(nlevs_max);
 
     ReadParameters();
     const std::string& pv1 = "plot_vars_1"; setPlotVariables(pv1,plot_var_names_1);
@@ -573,6 +574,10 @@ ERF::InitData ()
 
         restart();
 
+
+        // TODO: Check if this is needed. I don't think it is since we now
+        //       advect all the scalars...
+
         // Need to fill ghost cells here since we will use this qmoist in advance
         if (solverChoice.moisture_type != MoistureType::None)
         {
@@ -613,7 +618,7 @@ ERF::InitData ()
     if (phys_bc_type[Orientation(Direction::z,Orientation::low)] == ERF_BC::MOST)
     {
         m_most = std::make_unique<ABLMost>(geom, vars_old, Theta_prim, z_phys_nd,
-                                           sst_lev, lmask_lev
+                                           sst_lev, lmask_lev, lsm_data, lsm_flux
 #ifdef ERF_USE_NETCDF
                                            ,start_bdy_time, bdy_time_interval
 #endif
@@ -629,6 +634,21 @@ ERF::InitData ()
             MultiFab::Divide(*Theta_prim[lev], S, Rho_comp     , 0, 1, ng);
             m_most->update_mac_ptrs(lev, vars_new, Theta_prim);
             m_most->update_fluxes(lev, t_new[lev]);
+        }
+    }
+
+    if (solverChoice.custom_rhotheta_forcing)
+    {
+        h_rhotheta_src.resize(max_level+1, amrex::Vector<Real>(0));
+        d_rhotheta_src.resize(max_level+1, amrex::Gpu::DeviceVector<Real>(0));
+        for (int lev = 0; lev <= finest_level; lev++)
+        {
+            const int domlen = geom[lev].Domain().length(2);
+            h_rhotheta_src[lev].resize(domlen, 0.0_rt);
+            d_rhotheta_src[lev].resize(domlen, 0.0_rt);
+            prob->update_rhotheta_sources(t_new[0],
+                                          h_rhotheta_src[lev], d_rhotheta_src[lev],
+                                          geom[lev], z_phys_cc[lev]);
         }
     }
 
@@ -1084,6 +1104,8 @@ ERF::ReadParameters ()
 
         pp.query("profile_int", profile_int);
 
+        pp.query("plot_lsm", plot_lsm);
+
         pp.query("output_1d_column", output_1d_column);
         pp.query("column_per", column_per);
         pp.query("column_interval", column_interval);
@@ -1151,6 +1173,21 @@ ERF::ReadParameters ()
     } else if (solverChoice.moisture_type == MoistureType::None) {
         micro.SetModel<NullMoist>();
         amrex::Print() << "WARNING: Compiled with moisture but using NullMoist model!\n";
+    } else {
+        amrex::Abort("Dont know this moisture_type!") ;
+    }
+
+    // What type of land surface model to use
+    // NOTE: Must be checked after init_params
+    if (solverChoice.lsm_type == LandSurfaceType::SLM) {
+        lsm.SetModel<SLM>();
+        amrex::Print() << "SLM land surface model!\n";
+    } else if (solverChoice.lsm_type == LandSurfaceType::MM5) {
+        lsm.SetModel<MM5>();
+        amrex::Print() << "MM5 land surface model!\n";
+    } else if (solverChoice.lsm_type == LandSurfaceType::None) {
+        lsm.SetModel<NullSurf>();
+        amrex::Print() << "Null land surface model!\n";
     } else {
         amrex::Abort("Dont know this moisture_type!") ;
     }
@@ -1286,8 +1323,7 @@ ERF::MakeDiagnosticAverage (Vector<Real>& h_havg, MultiFab& S, int n)
 
         auto      fab_arr = S[mfi].array();
 
-        FArrayBox fab_reduce(box, 1);
-        Elixir elx_reduce = fab_reduce.elixir();
+        FArrayBox fab_reduce(box, 1, The_Async_Arena());
         auto arr_reduce   = fab_reduce.array();
 
         ParallelFor(box, [=] AMREX_GPU_DEVICE (int i, int j, int k) {
@@ -1494,6 +1530,11 @@ ERF::ERF (const amrex::RealBox& rb, int max_level_in,
 #if defined(ERF_USE_RRTMGP)
     qheating_rates.resize(nlevs_max);
 #endif
+
+    // NOTE: size micro before readparams (chooses the model at all levels)
+    lsm.ReSize(nlevs_max);
+    lsm_data.resize(nlevs_max);
+    lsm_flux.resize(nlevs_max);
 
     ReadParameters();
     const std::string& pv1 = "plot_vars_1"; setPlotVariables(pv1,plot_var_names_1);
