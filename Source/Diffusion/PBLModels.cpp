@@ -205,6 +205,8 @@ ComputeTurbulentViscosityPBL (const amrex::MultiFab& xvel,
                 // Overall Length Scale
                 Real l_comb = 1.0 / (1.0/l_S + 1.0/l_T + 1.0/l_B);
 
+		dthetadz = 0.0;	
+
                 // NOTE: Level 2 limiting from balance of production and dissipation.
                 //       K_turb has a setval of 0.0 when the MF is created (NOT EACH STEP).
                 //       We do this inline to avoid storing qe^2 at each cell.
@@ -217,6 +219,8 @@ ComputeTurbulentViscosityPBL (const amrex::MultiFab& xvel,
                 Real qe           = (qe2 < 0.0) ? 0.0 : std::sqrt(qe2);
                 Real one_m_alpha  = (qvel(i,j,k) > qe) ? 1.0 : qvel(i,j,k) / (qe + eps);
                 Real one_m_alpha2 = one_m_alpha * one_m_alpha;
+				
+		one_m_alpha = 1.0; one_m_alpha2 = 1.0;	
 
                 // Compute non-dimensional parameters
                 Real l2_over_q2   = l_comb*l_comb/(qvel(i,j,k)*qvel(i,j,k));
