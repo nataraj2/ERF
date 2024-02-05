@@ -21,7 +21,7 @@ zhi.type = "SlipWall"
 erf.pbl_type        = "MYNN2.5"
 zlo.type      = "Most"
 erf.most.z0   = 0.1
-erf.most.zref = 187.5
+erf.most.zref = 225.0
 erf.QKE_0 = 0.1
 
 # TIME STEP CONTROL
