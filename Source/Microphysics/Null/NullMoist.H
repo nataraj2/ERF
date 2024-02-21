@@ -24,7 +24,7 @@ class NullMoist {
 
     virtual
     void
-    Advance (const amrex::Real& /*dt_advance*/) { }
+    Advance (const amrex::Real& /*dt_advance*/, amrex::MultiFab& ) { }
 
     virtual
     void

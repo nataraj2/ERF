@@ -44,9 +44,9 @@ public:
     }
 
     void
-    Advance (const int& lev, const amrex::Real& dt_advance)
+    Advance (const int& lev, const amrex::Real& dt_advance, amrex::MultiFab& mf_precip_accum)
     {
-        m_moist_model[lev]->Advance(dt_advance);
+        m_moist_model[lev]->Advance(dt_advance, mf_precip_accum);
     }
 
     void

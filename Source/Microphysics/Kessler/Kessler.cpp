@@ -11,7 +11,7 @@ using namespace amrex;
 /**
  * Compute Precipitation-related Microphysics quantities.
  */
-void Kessler::AdvanceKessler ()
+void Kessler::AdvanceKessler (amrex::MultiFab& mf_precip_accum)
 {
     auto qv   = mic_fab_vars[MicVar_Kess::qv];
     auto qc   = mic_fab_vars[MicVar_Kess::qcl];
@@ -35,6 +35,7 @@ void Kessler::AdvanceKessler ()
         auto rho_array = mic_fab_vars[MicVar_Kess::rho]->array(mfi);
         auto qp_array  = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
         auto fz_array  = fz.array(mfi);
+		auto precip_accum_array = mf_precip_accum.array(mfi);
         const Box& tbz = mfi.tilebox();
 
         ParallelFor(tbz, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept

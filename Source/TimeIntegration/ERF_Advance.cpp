@@ -126,7 +126,7 @@ ERF::Advance (int lev, Real time, Real dt_lev, int /*iteration*/, int /*ncycle*/
                    Geom(lev), dt_lev, time, &ifr);
 
     // Update the microphysics (moisture)
-    advance_microphysics(lev, S_new, dt_lev);
+    advance_microphysics(lev, S_new, precip_accum[lev], dt_lev);
 
 #if defined(ERF_USE_RRTMGP)
     // Update the radiation

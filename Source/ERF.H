@@ -213,7 +213,7 @@ public:
                          amrex::Real dt, amrex::Real time,
                          amrex::InterpFaceRegister* ifr);
 
-    void advance_microphysics (int lev, amrex::MultiFab& cons_in,
+    void advance_microphysics (int lev, amrex::MultiFab& cons_in, amrex::MultiFab& mf_precip_accum, 
                                const amrex::Real& dt_advance);
 
 #if defined(ERF_USE_RRTMGP)
@@ -526,6 +526,8 @@ private:
 
     Microphysics micro;
     amrex::Vector<amrex::Vector<amrex::MultiFab*>> qmoist; // (lev,ncomp) This has up to 6 components: qv, qc, qi, qr, qs, qg
+
+	amrex::Vector<amrex::MultiFab> precip_accum;
 
 #if defined(ERF_USE_RRTMGP)
     Radiation rad;

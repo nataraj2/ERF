@@ -94,7 +94,7 @@ public:
 
     // wrapper to do all the updating
     void
-    Advance (const amrex::Real& dt_advance) override
+    Advance (const amrex::Real& dt_advance, amrex::MultiFab& mf_precip_accum) override
     {
         dt = dt_advance;
 

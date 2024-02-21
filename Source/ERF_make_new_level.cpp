@@ -73,6 +73,10 @@ void ERF::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
         qmoist[lev][mvar] = micro.Get_Qmoist_Ptr(lev,mvar);
     }
 
+	precip_accum[lev].define(ba, dm, 3, ngrow_state);// three precipitation components - rain, snow and graupel
+	precip_accum[lev].setVal(0.);	
+
+
     // ********************************************************************************************
     // Build the data structures for calculating diffusive/turbulent terms
     // ********************************************************************************************
@@ -218,6 +222,10 @@ ERF::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
         qmoist[lev][mvar] = micro.Get_Qmoist_Ptr(lev,mvar);
     }
 
+	int ngrow_state = ComputeGhostCells(solverChoice.advChoice, solverChoice.use_NumDiff) + 1;
+	precip_accum[lev].define(ba, dm, 3, ngrow_state);// three precipitation components - rain, snow and graupel
+	precip_accum[lev].setVal(0.);
+
     init_stuff(lev, ba, dm);
 
     t_new[lev] = time;
@@ -330,6 +338,9 @@ ERF::RemakeLevel (int lev, Real time, const BoxArray& ba, const DistributionMapp
     for (int mvar(0); mvar<qmoist[lev].size(); ++mvar) {
         qmoist[lev][mvar] = micro.Get_Qmoist_Ptr(lev,mvar);
     }
+
+	precip_accum[lev].define(ba, dm, 3, ngrow_state);// three precipitation components - rain, snow and graupel
+	precip_accum[lev].setVal(0.);
 
     init_stuff(lev,ba,dm);
 

@@ -43,7 +43,8 @@ namespace MicVar_Kess {
       qg,   // graupel
       // temporary variable
       omega,
-      NumVars
+      NumVars,
+	  rain_accum
   };
 }
 
@@ -62,7 +63,7 @@ public:
     virtual ~Kessler () = default;
 
     // cloud physics
-    void AdvanceKessler ();
+    void AdvanceKessler (amrex::MultiFab& mf_precip_accum);
 
     // diagnose
     void Diagnose () override;
@@ -112,11 +113,11 @@ public:
 
     // wrapper to advance micro vars
     void
-    Advance (const amrex::Real& dt_advance) override
+    Advance (const amrex::Real& dt_advance, amrex::MultiFab& mf_precip_accum) override
     {
         dt = dt_advance;
 
-        this->AdvanceKessler();
+        this->AdvanceKessler(mf_precip_accum);
         this->Diagnose();
     }
 
