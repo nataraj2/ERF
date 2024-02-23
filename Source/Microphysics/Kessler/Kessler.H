@@ -41,10 +41,10 @@ namespace MicVar_Kess {
       qpl,  // precip rain
       qpi,  // precip ice
       qg,   // graupel
+	  rain_accum,
       // temporary variable
       omega,
       NumVars,
-	  rain_accum
   };
 }
 
@@ -136,7 +136,7 @@ public:
 
 private:
     // Number of qmoist variables (qt, qv, qcl, qci, qp, qpl, qpi)
-    int m_qmoist_size = 7;
+    int m_qmoist_size = 9;
 
     // Number of qstate variables
     int m_qstate_size = 3;

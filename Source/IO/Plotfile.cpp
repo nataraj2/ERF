@@ -691,6 +691,14 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
                 MultiFab::Copy(mf[lev],qg_mf,0,mf_comp,1,0);
                 mf_comp += 1;
             }
+
+            if (containerHasElement(plot_var_names, "rain_accum") && (q_size >= 9))
+            {
+                MultiFab qg_mf(*(qmoist[lev][8]), make_alias, 0, 1);
+                MultiFab::Copy(mf[lev],qg_mf,0,mf_comp,1,0);
+                mf_comp += 1;
+            }
+
         }
 
 #ifdef ERF_USE_PARTICLES

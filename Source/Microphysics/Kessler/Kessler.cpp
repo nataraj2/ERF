@@ -20,6 +20,7 @@ void Kessler::AdvanceKessler (amrex::MultiFab& mf_precip_accum)
     auto pres = mic_fab_vars[MicVar_Kess::pres];
     auto theta = mic_fab_vars[MicVar_Kess::theta];
     auto rho   = mic_fab_vars[MicVar_Kess::rho];
+	auto rain_accum = mic_fab_vars[MicVar_Kess::rain_accum];
 
     auto dz = m_geom.CellSize(2);
     auto domain = m_geom.Domain();
@@ -35,7 +36,7 @@ void Kessler::AdvanceKessler (amrex::MultiFab& mf_precip_accum)
         auto rho_array = mic_fab_vars[MicVar_Kess::rho]->array(mfi);
         auto qp_array  = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
         auto fz_array  = fz.array(mfi);
-		auto precip_accum_array = mf_precip_accum.array(mfi);
+		auto rain_accum_array = rain_accum->array(mfi);
         const Box& tbz = mfi.tilebox();
 
         ParallelFor(tbz, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
@@ -62,6 +63,7 @@ void Kessler::AdvanceKessler (amrex::MultiFab& mf_precip_accum)
             /*if(k==0){
               fz_array(i,j,k) = 0;
               }*/
+			rain_accum_array(i,j,k) = rain_accum_array(i,j,k) + rho_avg*qp_avg*V_terminal*dt/1000.0;
         });
     }
 

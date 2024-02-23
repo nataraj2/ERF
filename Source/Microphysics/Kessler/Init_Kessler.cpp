@@ -30,7 +30,7 @@ void Kessler::Init (const MultiFab& cons_in,
 
     MicVarMap.resize(m_qmoist_size);
     MicVarMap = {MicVar_Kess::qt, MicVar_Kess::qv, MicVar_Kess::qcl, MicVar_Kess::qci,
-                 MicVar_Kess::qp, MicVar_Kess::qpl, MicVar_Kess::qpi};
+                 MicVar_Kess::qp, MicVar_Kess::qpl, MicVar_Kess::qpi, MicVar_Kess::qg, MicVar_Kess::rain_accum};
 
     // initialize microphysics variables
     for (auto ivar = 0; ivar < MicVar_Kess::NumVars; ++ivar) {
