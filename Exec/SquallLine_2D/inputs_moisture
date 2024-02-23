@@ -9,7 +9,7 @@ fabarray.mfiter_tile_size = 2048 1024 2048
 # PROBLEM SIZE & GEOMETRY
 geometry.prob_lo     = -25000.   0.    0.
 geometry.prob_hi     =  25000. 400. 20000.
-amr.n_cell           =  202    4    81    # dx=dy=dz=100 m
+amr.n_cell           =  192    4    128    # dx=dy=dz=100 m
 
 # periodic in x to match WRF setup
 # - as an alternative, could use symmetry at x=0 and outflow at x=25600
@@ -40,7 +40,7 @@ amr.check_int       = 1000       # number of timesteps between checkpoints
 
 # PLOTFILES
 erf.plot_file_1         = plt        # root name of plotfile
-erf.plot_int_1          = 120         # number of timesteps between plotfiles
+erf.plot_int_1          = 20         # number of timesteps between plotfiles
 erf.plot_vars_1         = density rhotheta rhoQ1 rhoQ2 rhoQ3 x_velocity y_velocity z_velocity pressure theta temp qt qp qv qc qi scalar pert_dens
 
 # SOLVER CHOICE
@@ -62,8 +62,8 @@ erf.molec_diff_type = "ConstantAlpha"
 #erf.molec_diff_type = "Constant"
 erf.rho0_trans = 1.0 # [kg/m^3], used to convert input diffusivities
 erf.dynamicViscosity = 100.0 # [kg/(m-s)] ==> nu = 75.0 m^2/s
-erf.alpha_T = 100.0 # [m^2/s]
-erf.alpha_C = 100.0
+erf.alpha_T = 300.0 # [m^2/s]
+erf.alpha_C = 300.0
 
 erf.moisture_model = "Kessler"
 erf.use_moist_background = true
