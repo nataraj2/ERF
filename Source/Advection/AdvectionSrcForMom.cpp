@@ -101,6 +101,14 @@ AdvectionSrcForMom (const Box& bxx, const Box& bxy, const Box& bxz,
                 Real advectionSrc = (xflux_hi - xflux_lo) * dxInv * mfsq
                                   + (yflux_hi - yflux_lo) * dyInv * mfsq
                                   + (zflux_hi - zflux_lo) * dzInv;
+
+				 if(i == 192){
+                    advectionSrc = rho_u(i,j,k)/(u(i,j,k) + 1e-10)*std::max(u(i,j,k) + 30.0, 0.0)*(u(i,j,k) - u(i-1,j,k)) * dxInv;
+                }
+                if(i == 0){
+                    advectionSrc = rho_u(i,j,k)/(u(i,j,k) + 1e-10)*std::min(u(i,j,k) - 30.0, 0.0)*(u(i+1,j,k) - u(i,j,k)) * dxInv;
+                }
+
                 rho_u_rhs(i, j, k) = -advectionSrc;
             },
             [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept

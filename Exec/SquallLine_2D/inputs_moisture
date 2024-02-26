@@ -8,14 +8,16 @@ fabarray.mfiter_tile_size = 2048 1024 2048
 
 # PROBLEM SIZE & GEOMETRY
 geometry.prob_lo     = -25000.   0.    0.
-geometry.prob_hi     =  25000. 400. 20000.
+geometry.prob_hi     =  25000. 400. 30000.
 amr.n_cell           =  192    4    128    # dx=dy=dz=100 m
 
 # periodic in x to match WRF setup
 # - as an alternative, could use symmetry at x=0 and outflow at x=25600
-geometry.is_periodic = 1 1 0
+geometry.is_periodic = 0 1 0
+xlo.type = "Outflow"
+xhi.type = "Outflow"
 zlo.type = "SlipWall"
-zhi.type = "SlipWall"
+zhi.type = "Outflow"
 
 # TIME STEP CONTROL
 erf.use_native_mri = 1
@@ -38,7 +40,7 @@ amr.check_int       = 1000       # number of timesteps between checkpoints
 # PLOTFILES
 erf.plot_file_1         = plt        # root name of plotfile
 erf.plot_int_1          = 60         # number of timesteps between plotfiles
-erf.plot_vars_1         = density rhotheta rhoQ1 rhoQ2 rhoQ3 x_velocity y_velocity z_velocity pressure theta temp qt qp qv qc qi scalar pert_dens
+erf.plot_vars_1         = density rhotheta rhoQ1 rhoQ2 rhoQ3 x_velocity y_velocity z_velocity pressure theta temp qt qp qv qc scalar pert_dens
 
 # SOLVER CHOICE
 erf.use_gravity = true
@@ -58,12 +60,12 @@ erf.alpha_C = 100.0
 erf.moisture_model = "Kessler"
 erf.use_moist_background = true
 
-erf.dycore_horiz_adv_type    = "Upwind_3rd"
-erf.dycore_vert_adv_type     = "Upwind_3rd"
-erf.dryscal_horiz_adv_type   = "Upwind_3rd"
-erf.dryscal_vert_adv_type    = "Upwind_3rd"
-erf.moistscal_horiz_adv_type = "Upwind_3rd"
-erf.moistscal_vert_adv_type  = "Upwind_3rd"
+erf.dycore_horiz_adv_type    = "Centered_2nd"
+erf.dycore_vert_adv_type     = "Centered_2nd"
+erf.dryscal_horiz_adv_type   = "Centered_2nd"
+erf.dryscal_vert_adv_type    = "Centered_2nd"
+erf.moistscal_horiz_adv_type = "Centered_2nd"
+erf.moistscal_vert_adv_type  = "Centered_2nd"
 
 
 # PROBLEM PARAMETERS (optional)
