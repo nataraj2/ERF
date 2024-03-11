@@ -162,6 +162,13 @@ void Kessler::AdvanceKessler ()
 
             theta_array(i,j,k) = theta_array(i,j,k) + theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*(dq_vapor_to_clwater - dq_clwater_to_vapor - dq_rain_to_vapor);
 
+			// Heating
+			theta_array(i,j,k) = theta_array(i,j,k) + theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*dq_clwater_to_vapor;	
+
+			if(qp_array(i,j,k) > 0.01){
+				std::cout << "Source term on right hand side is " << theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*dq_clwater_to_vapor*rho_array(i,j,k) << "\n";;
+			}
+
             qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
             qc_array(i,j,k) = std::max(0.0, qc_array(i,j,k));
             qp_array(i,j,k) = std::max(0.0, qp_array(i,j,k));
