@@ -44,9 +44,9 @@ public:
     }
 
     void
-    Advance (const int& lev, const amrex::Real& dt_advance)
+    Advance (const int& lev, const amrex::Real& dt_advance, const amrex::Real time=0.0)
     {
-        m_moist_model[lev]->Advance(dt_advance);
+        m_moist_model[lev]->Advance(dt_advance, time);
     }
 
     void

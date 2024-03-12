@@ -24,7 +24,8 @@ class NullMoist {
 
     virtual
     void
-    Advance (const amrex::Real& /*dt_advance*/) { }
+    Advance (const amrex::Real& /*dt_advance*/,
+			 const amrex::Real time = 0.0) { }
 
     virtual
     void

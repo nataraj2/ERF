@@ -7,8 +7,8 @@ amrex.fpe_trap_invalid = 1
 fabarray.mfiter_tile_size = 2048 1024 2048
 
 # PROBLEM SIZE & GEOMETRY
-geometry.prob_lo     = -25000.   0.    0.
-geometry.prob_hi     =  25000. 400. 30000.
+geometry.prob_lo     =  0000.   0.    0.
+geometry.prob_hi     =  50000. 400. 30000.
 amr.n_cell           =  192    4    128    # dx=dy=dz=100 m
 
 # periodic in x to match WRF setup
@@ -40,7 +40,7 @@ amr.check_int       = 1000       # number of timesteps between checkpoints
 # PLOTFILES
 erf.plot_file_1         = plt        # root name of plotfile
 erf.plot_int_1          = 60         # number of timesteps between plotfiles
-erf.plot_vars_1         = density rhotheta rhoQ1 rhoQ2 rhoQ3 x_velocity y_velocity z_velocity pressure theta temp rain_accum scalar pert_dens
+erf.plot_vars_1         = density rhotheta rhoQ1 rhoQ2 rhoQ3 x_velocity y_velocity z_velocity pressure theta temp rain_accum mwave_heating scalar pert_dens
 
 # SOLVER CHOICE
 erf.use_gravity = true
@@ -74,8 +74,8 @@ prob.height = 1200.0
 prob.theta_0 = 300.0
 prob.theta_tr = 343.0
 prob.T_tr = 213.0
-prob.x_c = 0.0
+prob.x_c = 25000.0
 prob.z_c = 1500.0
 prob.x_r = 4000.0
 prob.z_r = 1500.0
-prob.theta_c = 3.0
+prob.theta_c = 1.0

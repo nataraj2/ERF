@@ -39,6 +39,7 @@ namespace MicVar_Kess {
       qp,    // total precip
       // derived vars
 	  precip_accum,
+	  mwave_heating,
       NumVars
   };
 }
@@ -55,7 +56,7 @@ public:
     virtual ~Kessler () = default;
 
     // cloud physics
-    void AdvanceKessler ();
+    void AdvanceKessler (const amrex::Real time=0.0);
 
     // diagnose
     void Diagnose () override;
@@ -105,11 +106,11 @@ public:
 
     // wrapper to advance micro vars
     void
-    Advance (const amrex::Real& dt_advance) override
+    Advance (const amrex::Real& dt_advance, const amrex::Real time=0.0) override
     {
         dt = dt_advance;
 
-        this->AdvanceKessler();
+        this->AdvanceKessler(time);
         this->Diagnose();
     }
 
@@ -128,7 +129,7 @@ public:
 
 private:
     // Number of qmoist variables (qt, qv, qcl, qp)
-    int m_qmoist_size = 5;
+    int m_qmoist_size = 6;
 
     // Number of qstate variables
     int m_qstate_size = 3;

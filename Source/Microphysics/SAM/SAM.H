@@ -118,7 +118,7 @@ public:
 
     // wrapper to do all the updating
     void
-    Advance (const amrex::Real& dt_advance) override
+    Advance (const amrex::Real& dt_advance, const amrex::Real time=0.0) override
     {
         dt = dt_advance;
 

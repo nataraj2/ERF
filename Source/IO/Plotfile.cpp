@@ -654,6 +654,14 @@ ERF::WritePlotFile (int which, Vector<std::string> plot_var_names)
                 mf_comp += 1;
             }
 
+			if (containerHasElement(plot_var_names, "mwave_heating"))
+            {
+                MultiFab qt_mf(*(qmoist[lev][5]), make_alias, 0, 1);
+                MultiFab::Copy(mf[lev],qt_mf,0,mf_comp,1,0);
+                mf_comp += 1;
+            }
+
+
         }
 
 #ifdef ERF_USE_PARTICLES

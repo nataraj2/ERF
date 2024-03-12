@@ -7,8 +7,9 @@ using namespace amrex;
 /**
  * Compute Precipitation-related Microphysics quantities.
  */
-void Kessler::AdvanceKessler ()
+void Kessler::AdvanceKessler (const Real time)
 {
+	std::cout << "Time value is ......." << time << "\n";
     auto qv    = mic_fab_vars[MicVar_Kess::qv];
     auto qc    = mic_fab_vars[MicVar_Kess::qcl];
     auto qp    = mic_fab_vars[MicVar_Kess::qp];
@@ -17,7 +18,9 @@ void Kessler::AdvanceKessler ()
     auto theta = mic_fab_vars[MicVar_Kess::theta];
     auto rho   = mic_fab_vars[MicVar_Kess::rho];
     auto precip_accum = mic_fab_vars[MicVar_Kess::precip_accum];	
+    auto mwave_heating = mic_fab_vars[MicVar_Kess::mwave_heating];	
 
+    auto dx = m_geom.CellSize(0);
     auto dz = m_geom.CellSize(2);
     auto domain = m_geom.Domain();
     int k_lo = domain.smallEnd(2);
@@ -76,6 +79,7 @@ void Kessler::AdvanceKessler ()
         auto pres_array = mic_fab_vars[MicVar_Kess::pres]->array(mfi);
         auto theta_array = theta->array(mfi);
         auto rho_array   = mic_fab_vars[MicVar_Kess::rho]->array(mfi);
+		auto mwave_heating_array = mwave_heating->array(mfi);
 
         const auto& box3d = mfi.tilebox();
 
@@ -162,11 +166,23 @@ void Kessler::AdvanceKessler ()
 
             theta_array(i,j,k) = theta_array(i,j,k) + theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*(dq_vapor_to_clwater - dq_clwater_to_vapor - dq_rain_to_vapor);
 
-			// Heating
-			theta_array(i,j,k) = theta_array(i,j,k) + theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*dq_clwater_to_vapor;	
+			// Heating from statllite microwave beams
+			int domlo_x = domain.smallEnd(0);
+			int domhi_x = domain.bigEnd(0) + 1;
+			int domlo_z = domain.smallEnd(2);
+    		int domhi_z = domain.bigEnd(2) + 1;
+			int ii = amrex::min(amrex::max(i, domlo_x), domhi_x);
+			int kk = amrex::min(amrex::max(k, domlo_z), domhi_z);
+			
+			Real xloc = (ii+0.5)*dx;
+			Real zloc = (kk+0.5)*dz;
 
-			if(qp_array(i,j,k) > 0.01){
-				std::cout << "Source term on right hand side is " << theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*dq_clwater_to_vapor*rho_array(i,j,k) << "\n";;
+			if (xloc > 20.0e3 and xloc < 30e3 and zloc > 2.5e3 and zloc < 7.5e3 and time < 600.0)
+			{	
+				//Real heating = theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*(dq_clwater_to_vapor + dq_rain_to_vapor);
+				Real heating = theta_array(i,j,k)/tabs_array(i,j,k)*10.0/600.0*dtn;
+				//theta_array(i,j,k) = theta_array(i,j,k) + heating;
+				mwave_heating_array(i,j,k) = heating;
 			}
 
             qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
