@@ -78,4 +78,4 @@ prob.x_c = 25000.0
 prob.z_c = 1500.0
 prob.x_r = 4000.0
 prob.z_r = 1500.0
-prob.theta_c = 1.0
+prob.theta_c = 3.0

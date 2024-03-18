@@ -188,7 +188,6 @@ Problem::init_isentropic_hse_no_terrain(Real *theta, Real* r, Real* p, Real *q_v
     }
     //fclose(file_IC);
 
-
     r[khi+1] = r[khi];
 }
 

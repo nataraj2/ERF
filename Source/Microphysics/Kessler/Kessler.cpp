@@ -177,12 +177,11 @@ void Kessler::AdvanceKessler (const Real time)
 			Real xloc = (ii+0.5)*dx;
 			Real zloc = (kk+0.5)*dz;
 
-			if (xloc > 20.0e3 and xloc < 30e3 and zloc > 2.5e3 and zloc < 7.5e3 and time < 600.0)
+			if (xloc > 20.0e3 and xloc < 30e3 and zloc > 1.0e3 and zloc < 5.0e3 and time < 3600.0)
 			{	
-				//Real heating = theta_array(i,j,k)/tabs_array(i,j,k)*d_fac_cond*(dq_clwater_to_vapor + dq_rain_to_vapor);
-				Real heating = theta_array(i,j,k)/tabs_array(i,j,k)*10.0/600.0*dtn;
+				//Real heating = theta_array(i,j,k)/tabs_array(i,j,k)*3.0/3600.0*dtn;
 				//theta_array(i,j,k) = theta_array(i,j,k) + heating;
-				mwave_heating_array(i,j,k) = heating;
+				//mwave_heating_array(i,j,k) = heating;
 			}
 
             qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
