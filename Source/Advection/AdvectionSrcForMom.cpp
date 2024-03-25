@@ -103,7 +103,7 @@ AdvectionSrcForMom (const Box& bxx, const Box& bxy, const Box& bxz,
                                   + (zflux_hi - zflux_lo) * dzInv;
 
 				 if(i == 200){
-                    advectionSrc = (cell_data(i,j,k,Rho_comp)+cell_data(i+1,j,k,Rho_comp))/2.0 *std::max(u(i,j,k) + 30.0, 0.0)*(u(i,j,k) - u(i-1,j,k)) * dxInv;
+                    advectionSrc = (cell_data(i,j,k,Rho_comp)+cell_data(i-1,j,k,Rho_comp))/2.0 *std::max(u(i,j,k) + 30.0, 0.0)*(u(i,j,k) - u(i-1,j,k)) * dxInv;
                 }
                 if(i == 0){
                     advectionSrc = (cell_data(i,j,k,Rho_comp)+cell_data(i-1,j,k,Rho_comp))/2.0*std::min(u(i,j,k) - 30.0, 0.0)*(u(i+1,j,k) - u(i,j,k)) * dxInv;
