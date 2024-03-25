@@ -54,7 +54,7 @@ AdvectionSrcForMom (const Box& bxx, const Box& bxy, const Box& bxz,
                     const Real horiz_upw_frac,
                     const Real vert_upw_frac,
                     const bool use_terrain,
-                    const int domhi_z)
+                    const int domhi_z, const Array4<const Real> & cell_data)
 {
     BL_PROFILE_VAR("AdvectionSrcForMom", AdvectionSrcForMom);
 
@@ -102,11 +102,12 @@ AdvectionSrcForMom (const Box& bxx, const Box& bxy, const Box& bxz,
                                   + (yflux_hi - yflux_lo) * dyInv * mfsq
                                   + (zflux_hi - zflux_lo) * dzInv;
 
-				 if(i == 192){
-                    advectionSrc = rho_u(i,j,k)/(u(i,j,k) + 1e-10)*std::max(u(i,j,k) + 30.0, 0.0)*(u(i,j,k) - u(i-1,j,k)) * dxInv;
+				 if(i == 200){
+                    advectionSrc = cell_data(i,j,k,Rho_comp)*std::max(u(i,j,k) + 30.0, 0.0)*(u(i,j,k) - u(i-1,j,k)) * dxInv;
                 }
                 if(i == 0){
-                    advectionSrc = rho_u(i,j,k)/(u(i,j,k) + 1e-10)*std::min(u(i,j,k) - 30.0, 0.0)*(u(i+1,j,k) - u(i,j,k)) * dxInv;
+                    advectionSrc = cell_data(i,j,k,Rho_comp)*std::min(u(i,j,k) - 30.0, 0.0)*(u(i+1,j,k) - u(i,j,k)) * dxInv;
+					//if(j==0 and k==0) std::cout << "Value is " << advectionSrc <<  " " << cell_data(i,j,k,Rho_comp)  << " " << u(i+1,j,k) - u(i,j,k) << "\n";
                 }
 
                 rho_u_rhs(i, j, k) = -advectionSrc;

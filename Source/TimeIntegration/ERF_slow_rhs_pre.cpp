@@ -770,7 +770,7 @@ void erf_slow_rhs_pre (int level, int finest_level,
                            z_nd, detJ_arr, dxInv, mf_m, mf_u, mf_v,
                            l_horiz_adv_type, l_vert_adv_type,
                            l_horiz_upw_frac, l_vert_upw_frac,
-                           l_use_terrain, domhi_z);
+                           l_use_terrain, domhi_z, cell_data);
 
         if (l_use_diff) {
             // Note: tau** were calculated with calls to
@@ -896,7 +896,7 @@ void erf_slow_rhs_pre (int level, int finest_level,
                              +cell_prim(i,j,k,PrimQ2_comp) + cell_prim(i-1,j,k,PrimQ2_comp) );
               }
 
-			  if(i!=192 and i!=0){
+			  if(i!=200 and i!=0){
               	rho_u_rhs(i, j, k) += (-gpx - abl_pressure_grad[0]) / (1.0 + q)
                                     + rho_on_u_face * abl_geo_forcing[0];
 

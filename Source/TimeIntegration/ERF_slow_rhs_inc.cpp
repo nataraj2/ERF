@@ -698,7 +698,7 @@ void erf_slow_rhs_inc (int /*level*/, int nrk,
                            z_nd, detJ_arr, dxInv, mf_m, mf_u, mf_v,
                            l_horiz_adv_type, l_vert_adv_type,
                            l_horiz_upw_frac, l_vert_upw_frac,
-                           l_use_terrain, domhi_z);
+                           l_use_terrain, domhi_z, cell_data);
 
         if (l_use_diff) {
             DiffusionSrcForMom_N(tbx, tby, tbz,
