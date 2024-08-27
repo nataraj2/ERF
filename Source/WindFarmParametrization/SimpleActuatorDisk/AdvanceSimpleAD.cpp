@@ -12,12 +12,12 @@ SimpleAD::advance (const Geometry& geom,
                   MultiFab& V_old,
                   MultiFab& W_old,
                   const MultiFab& mf_Nturb,
-				  const MultiFab& mf_SMark)
+                  const MultiFab& mf_SMark)
 {
     AMREX_ALWAYS_ASSERT(W_old.nComp() > 0);
     AMREX_ALWAYS_ASSERT(mf_Nturb.nComp() > 0);
 
-	compute_freestream_velocity(geom, cons_in, U_old, V_old, mf_SMark);	
+    compute_freestream_velocity(geom, cons_in, U_old, V_old, mf_SMark);
     source_terms_cellcentered(geom, cons_in, mf_vars_simpleAD , U_old, V_old);
     update(dt_advance, cons_in, U_old, V_old, mf_vars_simpleAD);
 }
@@ -53,45 +53,44 @@ SimpleAD::update (const Real& dt_advance,
 void
 SimpleAD::compute_freestream_velocity(const Geometry& geom,
                                       const MultiFab& cons_in,
-									  const MultiFab& U_old,
+                                      const MultiFab& U_old,
                                       const MultiFab& V_old,
-									  const MultiFab& mf_SMark)
+                                      const MultiFab& mf_SMark)
 {
-	 get_turb_loc(xloc, yloc);
-	 freestream_velocity.resize(xloc.size(),0.0); 
-	 disk_cell_count.resize(xloc.size(),0.0);
+     get_turb_loc(xloc, yloc);
+     freestream_velocity.resize(xloc.size(),0.0);
+     disk_cell_count.resize(xloc.size(),0.0);
 
-	 Gpu::DeviceVector<Real> d_freestream_velocity(xloc.size());
+     Gpu::DeviceVector<Real> d_freestream_velocity(xloc.size());
      Gpu::DeviceVector<Real> d_disk_cell_count(yloc.size());
      Gpu::copy(Gpu::hostToDevice, freestream_velocity.begin(), freestream_velocity.end(), d_freestream_velocity.begin());
      Gpu::copy(Gpu::hostToDevice, disk_cell_count.begin(), disk_cell_count.end(), d_disk_cell_count.begin());
 
-	 Real* d_freestream_velocity_ptr = d_freestream_velocity.data();
+     Real* d_freestream_velocity_ptr = d_freestream_velocity.data();
      Real* d_disk_cell_count_ptr     = d_disk_cell_count.data();
-	
 
-	 for ( MFIter mfi(cons_in,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+
+     for ( MFIter mfi(cons_in,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 
         auto SMark_array    = mf_SMark.array(mfi);
         auto u_vel          = U_old.array(mfi);
         auto v_vel          = V_old.array(mfi);
-		Box tbx = mfi.nodaltilebox(0);
+        Box tbx = mfi.nodaltilebox(0);
 
-		ParallelFor(tbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-	
-			if(SMark_array(i,j,k) != 0.0) {
-				int turb_index = static_cast<int>(SMark_array(i,j,k));
-				freestream_velocity[turb_index] = freestream_velocity[turb_index] + u_vel(i,j,k);
-				disk_cell_count[turb_index] = disk_cell_count[turb_index] + 1;
-			}				
-		});
-	}
+        ParallelFor(tbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
 
-	for(int it=0; it<xloc.size(); it++){
-		std::cout << "Freestream velocity is " << it << " " << freestream_velocity[it] << " " << disk_cell_count[it] <<  
-					" " << freestream_velocity[it]/(disk_cell_count[it] + 1e-10) << "\n";
-	}
-	exit(0);	
+            if(SMark_array(i,j,k) != 0.0) {
+                int turb_index = static_cast<int>(SMark_array(i,j,k));
+                freestream_velocity[turb_index] = freestream_velocity[turb_index] + u_vel(i,j,k);
+                disk_cell_count[turb_index] = disk_cell_count[turb_index] + 1;
+            }
+        });
+    }
+
+    for(int it=0; it<xloc.size(); it++){
+        std::cout << "turbine index, freestream velocity is " << it << " " << freestream_velocity[it]/(disk_cell_count[it] + 1e-10) << "\n";
+    }
+    exit(0);
 }
 
 void

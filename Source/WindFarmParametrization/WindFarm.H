@@ -74,7 +74,7 @@ public:
                   amrex::MultiFab& V_old,
                   amrex::MultiFab& W_old,
                   const amrex::MultiFab& mf_Nturb,
-				  const amrex::MultiFab& mf_SMark) override
+                  const amrex::MultiFab& mf_SMark) override
     {
         m_windfarm_model[0]->advance(a_geom, dt_advance, cons_in, mf_vars_windfarm,
                                      U_old, V_old, W_old, mf_Nturb, mf_SMark);
