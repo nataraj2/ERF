@@ -79,7 +79,7 @@ SimpleAD::compute_freestream_velocity(const Geometry& geom,
 
         ParallelFor(tbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
 
-            if(SMark_array(i,j,k) != 0.0) {
+            if(SMark_array(i,j,k) != -1.0) {
                 int turb_index = static_cast<int>(SMark_array(i,j,k));
                 freestream_velocity[turb_index] = freestream_velocity[turb_index] + u_vel(i,j,k);
                 disk_cell_count[turb_index] = disk_cell_count[turb_index] + 1;

@@ -262,7 +262,7 @@ WindFarm::fill_SMark_multifab(const Geometry& geom,
     Real* d_xloc_ptr     = d_xloc.data();
     Real* d_yloc_ptr     = d_yloc.data();
 
-    mf_SMark.setVal(0);
+    mf_SMark.setVal(-1.0);
 
     int i_lo = geom.Domain().smallEnd(0); int i_hi = geom.Domain().bigEnd(0);
     int j_lo = geom.Domain().smallEnd(1); int j_hi = geom.Domain().bigEnd(1);
