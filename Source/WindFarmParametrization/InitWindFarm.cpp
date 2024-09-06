@@ -3,6 +3,7 @@
  */
 
 #include <WindFarm.H>
+#include <algorithm>
 
 using namespace amrex;
 
@@ -109,19 +110,30 @@ WindFarm::init_windfarm_lat_lon (const std::string windfarm_loc_table,
     Real lat_lo  = latitude_lo*M_PI/180.0;
     Real lon_lo  = longitude_lo*M_PI/180.0;
 
+	// Find the coordinates of average of min and max of the farm
+	// Rotate about that point
+
+	Real lat_min = *std::min_element(lat.begin(), lat.end());
+	Real lat_max = *std::max_element(lat.begin(), lat.end());
+	Real lon_min = *std::min_element(lon.begin(), lon.end());
+	Real lon_max = *std::max_element(lon.begin(), lon.end());
+
+	Real lat_cen = 0.5*(lat_min+lat_max)*M_PI/180.0;
+	Real lon_cen = 0.5*(lon_min+lon_max)*M_PI/180.0;
+
     // (lat_lo, lon_lo) is mapped to (0,0)
 
+	
     for(int it=0;it<lat.size();it++){
         lat[it] = lat[it]*M_PI/180.0;
         lon[it] = lon[it]*M_PI/180.0;
-        Real delta_lat = (lat[it] - lat_lo);
-        Real delta_lon = (lon[it] - lon_lo);
+        Real delta_lat = (lat[it] - lat_cen);
+        Real delta_lon = (lon[it] - lon_cen);
 
         Real term1 = std::pow(sin(delta_lat/2.0),2);
-        Real term2 = cos(lat[it])*cos(lat_lo)*std::pow(sin(delta_lon/2.0),2);
+        Real term2 = cos(lat[it])*cos(lat_cen)*std::pow(sin(delta_lon/2.0),2);
         Real dist =  2.0*rad_earth*std::asin(std::sqrt(term1 + term2));
-        Real dy_turb = (lat[it] - lat_lo) * 111000.0 * 180.0/M_PI ;
-        yloc.push_back(dy_turb);
+        Real dy_turb = (lat[it] - lat_cen) * 111000.0 * 180.0/M_PI ;
         Real dx_turb = std::sqrt(std::pow(dist,2) - std::pow(dy_turb,2));
         if(delta_lon >= 0.0) {
             xloc.push_back(dx_turb);
@@ -129,7 +141,43 @@ WindFarm::init_windfarm_lat_lon (const std::string windfarm_loc_table,
         else {
             xloc.push_back(-dx_turb);
         }
+        yloc.push_back(dy_turb);
     }
+
+	Real xloc_min = *std::min_element(xloc.begin(),xloc.end());
+	Real yloc_min = *std::min_element(yloc.begin(),yloc.end());
+
+	for(int it = 0;it<xloc.size(); it++){
+		xloc[it] = xloc[it] - xloc_min + 1000;
+		yloc[it] = yloc[it] - yloc_min + 1000;
+	}
+
+    Real xmin = *std::min_element(xloc.begin(), xloc.end());
+    Real xmax = *std::max_element(xloc.begin(), xloc.end());
+    Real ymin = *std::min_element(yloc.begin(), yloc.end());
+    Real ymax = *std::max_element(yloc.begin(), yloc.end());
+
+    Real xcen = 0.5*(xmin+xmax);
+    Real ycen = 0.5*(ymin+ymax);	
+
+	Real theta = 0.25*M_PI;
+
+	for(int it = 0;it<xloc.size(); it++){
+		Real xnew = ( (xloc[it]-xcen)*std::cos(theta) + (yloc[it]-ycen)*std::sin(theta));	
+		Real ynew = (-(xloc[it]-xcen)*std::sin(theta) + (yloc[it]-ycen)*std::cos(theta));	
+		
+		xloc[it] = xcen + xnew;		
+		yloc[it] = ycen + ynew;
+	}
+
+
+	Real xloc_min1 = *std::min_element(xloc.begin(),xloc.end());
+    Real yloc_min1 = *std::min_element(yloc.begin(),yloc.end());
+
+    for(int it = 0;it<xloc.size(); it++){
+        xloc[it] = xloc[it] - xloc_min1 + 1000;
+        yloc[it] = yloc[it] - yloc_min1 + 1000;
+    }	
 }
 
 void
@@ -245,6 +293,46 @@ WindFarm::fill_Nturb_multifab(const Geometry& geom,
 }
 
 
+/*AMREX_GPU_DEVICE
+bool find_if_marked(Real x1, Real x2, Real y1, Real y2, Real x0, Real y0,
+                    Real nx, Real ny, Real d_hub_height, Real d_rotor_rad, 
+					Real y, Real z)
+{
+
+	// Plane is (x-x0)*nx + (y-y0*ny = 0. And the planes to intersect are 
+	// x = x1, x = x2, y = y1, y = y2
+
+	Real xval1 = x0+1e-12 - (y1-y0)*ny/(nx+1e-10);
+	Real xval2 = x0+1e-12 - (y2-y0)*ny/(nx+1e-10);
+
+	Real yval1 = y0+1e-12 - (x1-x0)*nx/(ny+1e-10);
+	Real yval2 = y0+1e-12 - (x2-x0)*nx/(ny+1e-10);
+
+	if( xval1 >=x1 and xval1 <=x2 ) {
+		if(std::pow((y1-y0)*(y1-y0) + (z-d_hub_height)*(z-d_hub_height),0.5) < d_rotor_rad ) {
+            return true;
+        }
+	}
+	if( xval2 >=x1 and xval2 <=x2 ) {
+		if(std::pow((y2-y0)*(y2-y0) + (z-d_hub_height)*(z-d_hub_height),0.5) < d_rotor_rad ) {
+            return true;
+        }
+	}
+	if (yval1 >=y1 and yval1 <=y2) {
+		if(std::pow((yval1-y0)*(yval1-y0) + (z-d_hub_height)*(z-d_hub_height),0.5) < d_rotor_rad ) {
+            return true;
+        }
+	}
+	if (yval2 >=y1 and yval2 <=y2) {
+		if(std::pow((yval2-y0)*(yval2-y0) + (z-d_hub_height)*(z-d_hub_height),0.5) < d_rotor_rad ) {
+            return true;
+        }
+	}
+
+	return false;
+}*/
+
+
 void
 WindFarm::fill_SMark_multifab(const Geometry& geom,
                               MultiFab& mf_SMark,
@@ -262,7 +350,7 @@ WindFarm::fill_SMark_multifab(const Geometry& geom,
     Real* d_xloc_ptr     = d_xloc.data();
     Real* d_yloc_ptr     = d_yloc.data();
 
-    mf_SMark.setVal(0);
+    mf_SMark.setVal(-1.0);
 
     int i_lo = geom.Domain().smallEnd(0); int i_hi = geom.Domain().bigEnd(0);
     int j_lo = geom.Domain().smallEnd(1); int j_hi = geom.Domain().bigEnd(1);
@@ -270,6 +358,10 @@ WindFarm::fill_SMark_multifab(const Geometry& geom,
     auto dx = geom.CellSizeArray();
     auto ProbLoArr = geom.ProbLoArray();
     int num_turb = xloc.size();
+
+	Real theta = 0.0*M_PI;
+	Real nx = -std::cos(theta);
+	Real ny = -std::sin(theta);
 
      // Initialize wind farm
     for ( MFIter mfi(mf_SMark,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
@@ -282,17 +374,28 @@ WindFarm::fill_SMark_multifab(const Geometry& geom,
 
             Real x1 = ProbLoArr[0] + ii*dx[0];
             Real x2 = ProbLoArr[0] + (ii+1)*dx[0];
+			Real y1 = ProbLoArr[1] + jj*dx[1];
+            Real y2 = ProbLoArr[1] + (jj+1)*dx[1];
 
             Real y = ProbLoArr[1] + (jj+0.5) * dx[1];
             Real z = ProbLoArr[2] + (kk+0.5) * dx[2];
 
             for(int it=0; it<num_turb; it++){
-                if(d_xloc_ptr[it]-d_sampling_distance+1e-12 > x1 and d_xloc_ptr[it]-d_sampling_distance+1e-12 < x2) {
-                   if(std::pow((y-d_yloc_ptr[it])*(y-d_yloc_ptr[it]) + (z-d_hub_height)*(z-d_hub_height),0.5) < d_rotor_rad) {
-                       SMark_array(i,j,k,0) = it;
-                    }
+				// Find the center of the disk shifted by a distance d in the normal direction into the wind
+				Real x0 = d_xloc_ptr[it] + d_sampling_distance*nx;
+				Real y0 = d_yloc_ptr[it] + d_sampling_distance*ny;
+
+				// Now the equation of the plane is  (x-x0)*nx + (y-y0)*ny = 0
+				// Now find the intersections of this plane with the faces of a cell 
+				// and check if it intersects.	
+
+				bool is_cell_marked = find_if_marked(x1, x2, y1, y2, x0, y0, 
+													 nx, ny, d_hub_height, d_rotor_rad, y, z);
+
+				if(is_cell_marked) {
+                	SMark_array(i,j,k,0) = it;
                 }
-            }
+			}   
         });
     }
 }
@@ -361,7 +464,9 @@ WindFarm::write_actuator_disks_vtk(const Geometry& geom)
                 z = hub_height+rotor_rad*sin(theta);
                 fprintf(file_actuator_disks_all, "%0.15g %0.15g %0.15g\n", x, y, z);
                 if(xloc[it] > ProbLoArr[0] and xloc[it] < ProbHiArr[0] and yloc[it] > ProbLoArr[1] and yloc[it] < ProbHiArr[1]) {
-                    fprintf(file_actuator_disks_in_dom, "%0.15g %0.15g %0.15g\n", x, y, z);
+					Real xp = (x-xloc[it])*std::cos(0.0*M_PI) - (y-yloc[it])*std::sin(0.0*M_PI);
+					Real yp = (x-xloc[it])*std::sin(0.0*M_PI) + (y-yloc[it])*std::cos(0.0*M_PI);
+                    fprintf(file_actuator_disks_in_dom, "%0.15g %0.15g %0.15g\n", xloc[it]+xp, yloc[it]+yp, z);
                 }
             }
         }
