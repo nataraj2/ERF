@@ -499,7 +499,6 @@ WindFarm::write_turbine_locations_vtk()
     }
 }
 
-
 void
 WindFarm::write_actuator_disks_vtk(const Geometry& geom)
 {

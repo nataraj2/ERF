@@ -47,7 +47,7 @@ namespace ERFParticleInitializations
 
 namespace ERFParticleNames
 {
-    const std::string tracers = "tracer_particles";
+    const std::string tracers = "particles";
     const std::string hydro = "hydro_particles";
 }
 

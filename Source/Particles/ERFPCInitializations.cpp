@@ -104,11 +104,23 @@ void ERFPC::initializeParticlesUniformDistributionInBox (const std::unique_ptr<M
             });
 
         } else {
+				std::cout << "I am inside here ........................ " << "\n";
             ParallelFor(tile_box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
+
                 Real x = plo[0] + (i + 0.5)*dx[0];
                 Real y = plo[1] + (j + 0.5)*dx[1];
                 Real z = plo[2] + (k + 0.5)*dx[2];
+
+				//Real rad = std::pow(std::pow((x - 0.0)/10000.0,2) + 
+				//					std::pow((y - 0.0)/10000.0,2) + 
+				//					std::pow((z - 2000.0)/2000.0,2), 0.5);
+
+				Real rad = std::pow(std::pow((x - 0.0)/10000.0,2) + 
+									std::pow((z - 2000.0)/1500.0,2), 0.5);
+					
+
+
                 if (particle_init_domain.contains(RealVect(x,y,z))) {
                     num_particles_arr(i,j,k) = particles_per_cell;
                 }
@@ -158,6 +170,7 @@ void ERFPC::initializeParticlesUniformDistributionInBox (const std::unique_ptr<M
                                           "Error: overflow on particle id numbers!" );
 
         if (a_height_ptr && place_randomly_in_cells) {
+				std::cout << "Reaching insde here -1...." << "\n";
 
             const auto height_arr        = (*a_height_ptr)[mfi].array();
 
@@ -206,6 +219,7 @@ void ERFPC::initializeParticlesUniformDistributionInBox (const std::unique_ptr<M
 
         } else if (a_height_ptr && !place_randomly_in_cells) {
 
+				std::cout << "Reaching insde here 0...." << "\n";
             const auto height_arr        = (*a_height_ptr)[mfi].array();
 
             ParallelFor(tile_box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
@@ -251,6 +265,8 @@ void ERFPC::initializeParticlesUniformDistributionInBox (const std::unique_ptr<M
             });
 
         } else if (!a_height_ptr && place_randomly_in_cells) {
+
+				std::cout << "Reaching insde here 1...." << "\n";
 
             ParallelForRNG(tile_box, [=] AMREX_GPU_DEVICE (int i, int j, int k,
                                                            const RandomEngine& rnd_engine) noexcept
