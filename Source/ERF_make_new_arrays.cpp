@@ -247,7 +247,8 @@ ERF::init_stuff (int lev, const BoxArray& ba, const DistributionMapping& dm,
     if (solverChoice.windfarm_type == WindFarmType::SimpleAD) {
         vars_windfarm[lev].define(ba, dm, 2, ngrow_state);// dudt, dvdt
     }
-    if (solverChoice.windfarm_type == WindFarmType::GeneralAD) {
+    if (solverChoice.windfarm_type == WindFarmType::GeneralAD or
+        solverChoice.windfarm_type == WindFarmType::ActuatorLine) {
         vars_windfarm[lev].define(ba, dm, 3, ngrow_state);// dudt, dvdt, dwdt
     }
         Nturb[lev].define(ba, dm, 1, ngrow_state); // Number of turbines in a cell

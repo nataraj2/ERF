@@ -42,7 +42,7 @@ AMREX_ENUM(MoistureType,
 );
 
 AMREX_ENUM(WindFarmType,
-    Fitch, EWP, SimpleAD, GeneralAD, None
+    Fitch, EWP, SimpleAD, GeneralAD, ActuatorLine, None
 );
 
 AMREX_ENUM(WindFarmLocType,
@@ -383,7 +383,7 @@ struct SolverChoice {
                            " velocity will be computed at.");
         }
         if ( (windfarm_type==WindFarmType::SimpleAD ||
-              windfarm_type==WindFarmType::GeneralAD ) && turb_disk_angle < 0.0) {
+              windfarm_type==WindFarmType::GeneralAD || windfarm_type==WindFarmType::ActuatorLine) && turb_disk_angle < 0.0) {
             amrex::Abort("To use simplified actuator disks, you need to provide a variable"
                           " erf.turb_disk_angle_from_x in the inputs which is the angle of the face of the"
                           " turbine disk from the x-axis. A turbine facing an oncoming flow in the x-direction"

@@ -102,7 +102,8 @@ ERF::setPlotVariables (const std::string& pp_plot_var_names, Vector<std::string>
                 }
             }
             if( solverChoice.windfarm_type == WindFarmType::SimpleAD or
-                solverChoice.windfarm_type == WindFarmType::GeneralAD ) {
+                solverChoice.windfarm_type == WindFarmType::GeneralAD or
+                solverChoice.windfarm_type == WindFarmType::ActuatorLine) {
                 if(derived_names[i] == "num_turb" or derived_names[i] == "SMark0" or derived_names[i] == "SMark1") {
                     tmp_plot_names.push_back(derived_names[i]);
                 }
@@ -474,7 +475,8 @@ ERF::WritePlotFile (int which, PlotFileType plotfile_type, Vector<std::string> p
 #ifdef ERF_USE_WINDFARM
         if (containerHasElement(plot_var_names, "num_turb") and
             (solverChoice.windfarm_type == WindFarmType::Fitch or solverChoice.windfarm_type == WindFarmType::EWP or
-            solverChoice.windfarm_type == WindFarmType::SimpleAD or solverChoice.windfarm_type == WindFarmType::GeneralAD))
+            solverChoice.windfarm_type == WindFarmType::SimpleAD or solverChoice.windfarm_type == WindFarmType::GeneralAD or
+            solverChoice.windfarm_type == WindFarmType::ActuatorLine))
         {
 #ifdef _OPENMP
 #pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
@@ -506,7 +508,9 @@ ERF::WritePlotFile (int which, PlotFileType plotfile_type, Vector<std::string> p
         }
 
          if(containerHasElement(plot_var_names, "SMark1") and
-           (solverChoice.windfarm_type == WindFarmType::SimpleAD or solverChoice.windfarm_type == WindFarmType::GeneralAD)) {
+           (solverChoice.windfarm_type == WindFarmType::SimpleAD or
+            solverChoice.windfarm_type == WindFarmType::GeneralAD or
+            solverChoice.windfarm_type == WindFarmType::ActuatorLine)) {
              for ( MFIter mfi(mf[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 const Box& bx = mfi.tilebox();

@@ -10,6 +10,7 @@
 #include "ERF_EWP.H"
 #include "ERF_SimpleAD.H"
 #include "ERF_GeneralAD.H"
+#include "ERF_ActuatorLine.H"
 
 class WindFarm : public NullWindFarm {
 
@@ -39,7 +40,11 @@ public:
             SetModel<GeneralAD>();
             amrex::Print() << "Generalized actuator disk windfarm model!\n";
         }
-         else {
+        else if (a_windfarm_type == WindFarmType::ActuatorLine) {
+            SetModel<ActuatorLine>();
+            amrex::Print() << "Actuator line windfarm model!\n";
+        }
+        else {
             amrex::Abort("WindFarm: Dont know this windfarm_type!") ;
         }
     }

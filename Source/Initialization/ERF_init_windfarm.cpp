@@ -35,14 +35,16 @@ ERF::init_windfarm (int lev)
     windfarm->write_turbine_locations_vtk();
 
     if(solverChoice.windfarm_type == WindFarmType::SimpleAD or
-       solverChoice.windfarm_type == WindFarmType::GeneralAD) {
+       solverChoice.windfarm_type == WindFarmType::GeneralAD or
+       solverChoice.windfarm_type == WindFarmType::ActuatorLine) {
         windfarm->fill_SMark_multifab(geom[lev], SMark[lev],
                                       solverChoice.sampling_distance_by_D,
                                       solverChoice.turb_disk_angle);
         windfarm->write_actuator_disks_vtk(geom[lev]);
     }
 
-    if(solverChoice.windfarm_type == WindFarmType::GeneralAD) {
+    if(solverChoice.windfarm_type == WindFarmType::GeneralAD or
+       solverChoice.windfarm_type == WindFarmType::ActuatorLine) {
         windfarm->read_windfarm_blade_table(solverChoice.windfarm_blade_table);
         windfarm->read_windfarm_airfoil_tables(solverChoice.windfarm_airfoil_tables,
                                                solverChoice.windfarm_blade_table);
