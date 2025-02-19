@@ -57,7 +57,7 @@ void Kessler::AdvanceKessler (const SolverChoice &solverChoice)
                 erf_dtqsatw(tabs_array(i,j,k), pressure, dtqsat);
 
                 if (qsat <= 0.0) {
-                    amrex::Warning("qsat computed as non-positive; setting to 0.!");
+                    //amrex::Warning("qsat computed as non-positive; setting to 0.!");
                     qsat = 0.0;
                 }
 

@@ -248,23 +248,38 @@ void make_mom_sources (int level,
         // *****************************************************************************
         // 2. Add CORIOLIS forcing (this assumes east is +x, north is +y)
         // *****************************************************************************
+		
+        Real dy  = geom.CellSize(1);
         if (use_coriolis) {
             ParallelFor(tbx, tby, tbz,
             [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {
                 Real rho_v_loc = 0.25 * (rho_v(i,j+1,k) + rho_v(i,j,k) + rho_v(i-1,j+1,k) + rho_v(i-1,j,k));
                 Real rho_w_loc = 0.25 * (rho_w(i,j,k+1) + rho_w(i,j,k) + rho_w(i,j-1,k+1) + rho_w(i,j-1,k));
-                xmom_src_arr(i, j, k) += coriolis_factor * (rho_v_loc * sinphi - rho_w_loc * cosphi);
+				Real y_minus_ylo = (j+0.5)*dy;
+				Real latitude = 12.0 + (42.0-12.0)/(3.75e6)*y_minus_ylo;
+				Real sin_of_phi = std::sin(latitude*PI/180.0);
+				Real cos_of_phi = std::cos(latitude*PI/180.0);
+
+                xmom_src_arr(i, j, k) += coriolis_factor * (rho_v_loc * sin_of_phi - rho_w_loc * cos_of_phi);
             },
 
             [=] AMREX_GPU_DEVICE (int i, int j, int k) {
                 Real rho_u_loc = 0.25 * (rho_u(i+1,j,k) + rho_u(i,j,k) + rho_u(i+1,j-1,k) + rho_u(i,j-1,k));
-                ymom_src_arr(i, j, k) += -coriolis_factor * rho_u_loc * sinphi;
+				Real y_minus_ylo = (j+0.5)*dy;
+				Real latitude = 12.0 + (42.0-12.0)/(3.75e6)*y_minus_ylo;
+				Real sin_of_phi = std::sin(latitude*PI/180.0);
+
+                ymom_src_arr(i, j, k) += -coriolis_factor * rho_u_loc * sin_of_phi;
             },
 
             [=] AMREX_GPU_DEVICE (int i, int j, int k) {
                 Real rho_u_loc = 0.25 * (rho_u(i+1,j,k) + rho_u(i,j,k) + rho_u(i+1,j,k-1) + rho_u(i,j,k-1));
-                zmom_src_arr(i, j, k) += coriolis_factor * rho_u_loc * cosphi;
+				Real y_minus_ylo = (j+0.5)*dy;
+				Real latitude = 12.0 + (42.0-12.0)/(3.75e6)*y_minus_ylo;
+				Real cos_of_phi = std::cos(latitude*PI/180.0);
+
+                zmom_src_arr(i, j, k) += coriolis_factor * rho_u_loc * cos_of_phi;
             });
         } // use_coriolis
 
