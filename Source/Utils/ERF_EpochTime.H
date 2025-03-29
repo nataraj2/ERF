@@ -13,7 +13,7 @@
 AMREX_FORCE_INLINE
 std::time_t getEpochTime(const std::string& dateTime, const std::string& dateTimeFormat) {
     std::tm tmTime{};
-    
+
     // Manually parse the date string
     if (sscanf(dateTime.c_str(), "%d-%d-%d_%d:%d:%dUTC",
                &tmTime.tm_year, &tmTime.tm_mon, &tmTime.tm_mday,
@@ -27,31 +27,6 @@ std::time_t getEpochTime(const std::string& dateTime, const std::string& dateTim
 
     // Convert to epoch time (UTC)
     return timegm(&tmTime);
-}
-
-
-AMREX_FORCE_INLINE
-std::time_t
-getEpochTime1 (const std::string& dateTime, const std::string& dateTimeFormat)
-{
-    // Create a tm object to store the parsed date and time.
-    std::tm tmTime;
-
-    // Create a stream which we will use to parse the string,
-    // which we provide to constructor of stream to fill the buffer.
-    std::istringstream ss{ dateTime };
-
-    // Now we read from buffer using get_time manipulator
-    // and formatting the input appropriately.
-    ss >> std::get_time(&tmTime, dateTimeFormat.c_str());
-
-    // Convert the tm structure to time_t value and return.
-    // Here we use timegm since the output should be relative to UTC.
-    auto epoch = timegm(&tmTime);
-    // Print() << "Time Stamp: "<< std::put_time(&tmTime, "%c")
-    //         << " , Epoch: " << epoch << std::endl;
-
-    return epoch;
 }
 
 AMREX_FORCE_INLINE
