@@ -34,6 +34,8 @@ ERF::fill_from_realbdy (const Vector<MultiFab*>& mfs,
     AMREX_ALWAYS_ASSERT( alpha >= 0. && alpha <= 1.0);
     Real oma   = 1.0 - alpha;
 
+	oma = 1.0;
+	alpha=0.0;
     // Flags for read vars and index mapping
     Vector<int> cons_read = {0, 1, 0, 0,
                              1, 0, 0,

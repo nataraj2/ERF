@@ -49,10 +49,10 @@ moist_set_rhs (const Box& tbx,
     AMREX_ALWAYS_ASSERT( alpha >= 0. && alpha <= 1.0);
     Real oma   = 1.0 - alpha;
 
-    /*
+    
     // UNIT TEST DEBUG
     oma = 1.0; alpha = 0.0;
-    */
+    
 
     // NOTE: These sizing of the temporary BDY FABS is
     //       GLOBAL and occurs over the entire BDY region.

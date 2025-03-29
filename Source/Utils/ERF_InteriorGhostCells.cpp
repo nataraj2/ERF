@@ -209,10 +209,10 @@ realbdy_compute_interior_ghost_rhs (const Real& bdy_time_interval,
     AMREX_ALWAYS_ASSERT( alpha >= 0. && alpha <= 1.0);
     Real oma   = 1.0 - alpha;
 
-    /*
+    
     // UNIT TEST DEBUG
-    oma = 1.0; alpha = 0.0;
-    */
+ 	 oma = 1.0; alpha = 0.0;
+    
 
     // Temporary FABs for storage (owned/filled on all ranks)
     FArrayBox U_xlo, U_xhi, U_ylo, U_yhi;

@@ -197,7 +197,7 @@ realbdy_set_rhs_in_spec_region (const amrex::Real& dt,
         int n_ind_x = i - dom_lo.x + 1;
         if ((n_ind_x <= Spec_z_x) || (n_ind_y <= Spec_z_y)) {
             amrex::Real tend = ( arr_xlo(i,j,k) - data_arr(i,j,k,n+icomp) ) / dt;
-            rhs_arr(i,j,k,n+icomp) = tend;
+            rhs_arr(i,j,k,n+icomp) = 0.0;//tend;
         }
     },
     bx_xhi, num_var, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
@@ -210,7 +210,7 @@ realbdy_set_rhs_in_spec_region (const amrex::Real& dt,
         int n_ind_x = dom_hi.x - i + 1;
         if ((n_ind_x <= Spec_z_x) || (n_ind_y <= Spec_z_y)) {
             amrex::Real tend = ( arr_xhi(i,j,k) - data_arr(i,j,k,n+icomp) ) / dt;
-            rhs_arr(i,j,k,n+icomp) = tend;
+            rhs_arr(i,j,k,n+icomp) = 0.0;//tend;
         }
     });
 
@@ -220,7 +220,7 @@ realbdy_set_rhs_in_spec_region (const amrex::Real& dt,
         int n_ind = j - dom_lo.y + 1;
         if (n_ind <= Spec_z_y) {
             amrex::Real tend = ( arr_ylo(i,j,k) - data_arr(i,j,k,n+icomp) ) / dt;
-            rhs_arr(i,j,k,n+icomp) = tend;
+            rhs_arr(i,j,k,n+icomp) = 0.0;//tend;
         }
     },
     bx_yhi, num_var, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
@@ -229,7 +229,7 @@ realbdy_set_rhs_in_spec_region (const amrex::Real& dt,
         int n_ind = dom_hi.y - j + 1;
         if (n_ind <= Spec_z_y) {
             amrex::Real tend = ( arr_yhi(i,j,k) - data_arr(i,j,k,n+icomp) ) / dt;
-            rhs_arr(i,j,k,n+icomp) = tend;
+            rhs_arr(i,j,k,n+icomp) = 0.0;//tend;
         }
     });
 }

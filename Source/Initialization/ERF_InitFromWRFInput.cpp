@@ -702,6 +702,8 @@ ERF::init_from_wrfinput (int lev)
                                              bdy_data_xlo,bdy_data_xhi,bdy_data_ylo,bdy_data_yhi,
                                              real_width, start_bdy_time);
 
+		real_width = 1;//real_set_width;
+
         Print() << "Read in boundary data with width "  << real_width << std::endl;
         Print() << "Running with specification width: " << real_set_width
                 << " and relaxation width: " << real_width - real_set_width << std::endl;

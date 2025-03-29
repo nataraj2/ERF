@@ -11,8 +11,28 @@
 #endif
 
 AMREX_FORCE_INLINE
+std::time_t getEpochTime(const std::string& dateTime, const std::string& dateTimeFormat) {
+    std::tm tmTime{};
+    
+    // Manually parse the date string
+    if (sscanf(dateTime.c_str(), "%d-%d-%d_%d:%d:%dUTC",
+               &tmTime.tm_year, &tmTime.tm_mon, &tmTime.tm_mday,
+               &tmTime.tm_hour, &tmTime.tm_min, &tmTime.tm_sec) != 6) {
+        return -1; // Indicate failure if parsing fails
+    }
+
+    // Adjust year and month for tm structure
+    tmTime.tm_year -= 1900; // tm_year is years since 1900
+    tmTime.tm_mon -= 1;     // tm_mon is zero-based
+
+    // Convert to epoch time (UTC)
+    return timegm(&tmTime);
+}
+
+
+AMREX_FORCE_INLINE
 std::time_t
-getEpochTime (const std::string& dateTime, const std::string& dateTimeFormat)
+getEpochTime1 (const std::string& dateTime, const std::string& dateTimeFormat)
 {
     // Create a tm object to store the parsed date and time.
     std::tm tmTime;
