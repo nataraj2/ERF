@@ -2,6 +2,8 @@
 
 #include "ERF.H"
 #include "ERF_EOS.H"
+#include <sstream>
+
 
 using namespace amrex;
 
@@ -561,3 +563,54 @@ ERF::derive_stress_profiles (Gpu::HostVector<Real>& h_avg_tau11, Gpu::HostVector
         h_avg_diss[k] /= area_z;
     }
 }
+
+std::string formatSimulationTime(int simTime) {
+    std::ostringstream oss;
+    oss << std::setw(7) << std::setfill('0') << simTime;  // Ensure 7 digits with zero-padding
+    return oss.str();
+}
+
+void
+ERF::write_1D_temperature(const Real time)
+{
+    int lev = 0.0;
+    const int nlev = geom[0].Domain().size()[2]; // Number of vertical levels
+
+    Gpu::DeviceVector<Real> avg_d(nlev, -1e20);
+    Real* avg_ptr = avg_d.data();
+
+    // Loop over MultiFab and accumulate sums
+    for (MFIter mfi(vars_new[lev][Vars::cons], TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const Array4<Real const>&  S_arr = vars_new[lev][Vars::cons].const_array(mfi);
+        const Box& bx = mfi.validbox();
+
+        ParallelFor(bx, [=]AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+            Real qv = S_arr(i,j,k,RhoQ1_comp)/S_arr(i,j,k,Rho_comp);
+            Real T = getTgivenRandRTh(S_arr(i,j,k,Rho_comp), S_arr(i,j,k,RhoTheta_comp), qv);
+            Gpu::Atomic::Max(&avg_ptr[k], T);
+        });
+    }
+
+    // Copy results back to host
+    Vector<Real> avg_h(nlev, 0.0);
+    Vector<Real> count_h(nlev, 0.0);
+    Gpu::copy(Gpu::deviceToHost, avg_d.begin(), avg_d.end(), avg_h.begin());
+    ParallelDescriptor::ReduceRealMax(avg_h.data(), nlev);
+
+    if (ParallelDescriptor::IOProcessor()) {
+        std::string base_filename = "output";
+        std::string time_str = formatSimulationTime(time);
+        std::string filename = base_filename + "_" + time_str + ".txt";
+
+        std::ofstream outfile(filename);
+        if (!outfile) {
+              std::cerr << "Error: Unable to open file " << filename << std::endl;
+            return;
+        }
+        for (int k = 0; k < avg_h.size(); ++k) {
+            outfile << k << " " << avg_h[k] << std::endl;
+        }
+        outfile.close();
+    }
+}
+

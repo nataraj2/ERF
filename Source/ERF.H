@@ -208,6 +208,9 @@ public:
     void sum_integrated_quantities (amrex::Real time);
     void write_1D_profiles (amrex::Real time);
     void write_1D_profiles_stag (amrex::Real time);
+    void write_1D_temperature (amrex::Real time);
+
+    void HurricaneTracker(int lev, amrex::Real time, amrex::Real& eye_x, amrex::Real& eye_y);
 
     amrex::Real cloud_fraction (amrex::Real time);
 

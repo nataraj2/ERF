@@ -11,11 +11,58 @@ using namespace amrex;
  * @param[in] time current time
 */
 
+void ERF::HurricaneTracker(int levc, Real time, Real& eye_x, Real& eye_y)
+{
+    const auto dx = geom[levc].CellSizeArray();
+    const auto prob_lo = geom[levc].ProbLoArray();
+
+    Real center[2];
+    center[0] = 0.9125e6;
+    center[1] = 3.4e6;
+
+    Real radius = 0.6e6;
+
+    Real omega = 1.212034e-5;
+
+    eye_x = center[0] + 1.5*radius*std::cos(3.0*M_PI/2.0-omega*time);
+    eye_y = center[1] + radius*std::sin(3.0*M_PI/2.0-omega*time);
+}
+
 void
 ERF::ErrorEst (int levc, TagBoxArray& tags, Real time, int /*ngrow*/)
 {
     const int clearval = TagBox::CLEAR;
     const int   tagval = TagBox::SET;
+
+    Real eye_x, eye_y;
+
+    Real rad_tag = 5e5;
+    if(levc == 1) {
+        rad_tag = 2.0e5;
+    }
+    HurricaneTracker(levc, time, eye_x, eye_y);
+
+    const auto dx = geom[levc].CellSizeArray();
+    const auto prob_lo = geom[levc].ProbLoArray();
+
+    for (MFIter mfi(tags); mfi.isValid(); ++mfi) {
+        TagBox& tag = tags[mfi];
+
+        const Box& tile_box = mfi.tilebox(); // The box for this tile
+        auto tag_arr = tag.array();  // Get device-accessible array
+
+        ParallelFor(tile_box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            // Compute cell center coordinates
+            Real x = prob_lo[0] + (i + 0.5) * dx[0];
+            Real y = prob_lo[1] + (j + 0.5) * dx[1];
+
+            Real dist = std::sqrt((x - eye_x)*(x - eye_x) + (y - eye_y)*(y - eye_y));
+
+            if (dist < rad_tag) {
+                tag_arr(i, j, k) = TagBox::SET;  // Mark for refinement
+            }
+        });
+    }
 
     //
     // Make sure the ghost cells of the level we are tagging at are filled

@@ -1,0 +1,495 @@
+diff --git a/Exec/DevTests/Hurricane/ERF_Prob.cpp b/Exec/DevTests/Hurricane/ERF_Prob.cpp
+index 36134698..0e0f09cd 100644
+--- a/Exec/DevTests/Hurricane/ERF_Prob.cpp
++++ b/Exec/DevTests/Hurricane/ERF_Prob.cpp
+@@ -1,6 +1,8 @@
+ #include "ERF_Prob.H"
+ #include <ERF_Constants.H>
+ 
++#include "ERF_Interpolation_Bilinear.H"
++
+ using namespace amrex;
+ 
+ std::unique_ptr<ProblemBase>
+@@ -84,80 +86,6 @@ Problem::erf_init_dens_hse_moist (MultiFab& rho_hse,
+     } // no terrain
+ }
+ 
+-AMREX_FORCE_INLINE
+-AMREX_GPU_HOST_DEVICE
+-int get_single_index(int i, int j, int k,
+-                     int nx, int ny)
+-{
+-
+-    int si = k*nx*ny + j*nx + i;
+-    return si;
+-}
+-
+-AMREX_FORCE_INLINE
+-AMREX_GPU_HOST_DEVICE
+-void bilinear_interpolation(const Real* xvec, const Real* yvec, const Real* zvec,
+-                            const Real dxvec, const Real dyvec,
+-                            const int nx, const int ny, const int nz,
+-                            const Real x, const Real y, const Real z,
+-                            const Real* varvec,
+-                            Real& tmp_var)
+-{
+-    int iloc=-1, jloc=-1, kloc=-1;
+-    for(int k=0;k<nz;k++){
+-        if(zvec[k] > z){
+-            kloc = k-1;
+-            break;
+-        }
+-        else if (zvec[k] == z) {
+-            kloc = k;
+-        }
+-
+-    }
+-        iloc = std::floor((x-xvec[0])/dxvec);
+-        jloc = std::floor((y-yvec[0])/dyvec);
+-
+-        if(iloc > nx-1 or iloc < 0 or
+-           jloc > ny-1 or iloc < 0 or
+-           kloc > nz-1 or kloc < 0){
+-            //std::cout << "The value of iloc, jloc, kloc is " << iloc << " " << jloc <<
+-            //                                                    kloc << "\n";
+-            //exit(0);
+-        }
+-
+-        Real xlo = xvec[0] + iloc*dxvec;
+-        Real ylo = yvec[0] + jloc*dyvec;
+-        Real zlo = zvec[kloc];
+-
+-        /*std::cout << "dxvec and dyvec are " << dxvec << " " << dyvec << "\n";
+-        std::cout << "The value of xvec0, yvec0 is " << xvec[0] << " " << yvec[0] <<  "\n";
+-        std::cout << "The value of x-xvec0/dxvec, y-yvec0/dyvec is " << x-xvec[0] << " " << y-yvec[0] <<  "\n";
+-        std::cout << "The value of x-xvec0/dxvec, y-yvec0/dyvec is " << (x-xvec[0])/dxvec << " " << (y-yvec[0])/dyvec <<  "\n";
+-        std::cout << "The value of xlo, ylo, zlo is " << xlo << " " << ylo << " " <<  zlo << "\n";
+-        std::cout << "The value of x, y, z is " << x << " " << y << " " <<  z << "\n";
+-        std::cout << "iloc, jloc, kloc = " << iloc << " " << jloc << " " << kloc << "\n";*/
+-
+-        Real w_x = (x - xlo)/dxvec;
+-        Real w_y = (y - ylo)/dyvec;
+-        Real w_z = (z - zlo)/(zvec[kloc+1] - zvec[kloc]);
+-
+-        int ind0 = get_single_index(iloc,jloc,kloc,nx,ny);
+-        int ind1 = get_single_index(iloc+1,jloc,kloc,nx,ny);
+-        int ind2 = get_single_index(iloc+1,jloc+1,kloc,nx,ny);
+-        int ind3 = get_single_index(iloc,jloc+1,kloc,nx,ny);
+-        int ind4 = get_single_index(iloc,jloc,kloc+1,nx,ny);
+-        int ind5 = get_single_index(iloc+1,jloc,kloc+1,nx,ny);
+-        int ind6 = get_single_index(iloc+1,jloc+1,kloc+1,nx,ny);
+-        int ind7 = get_single_index(iloc,jloc+1,kloc+1,nx,ny);
+-
+-        tmp_var = (1-w_x)*(1-w_y)*(1-w_z)*varvec[ind0] + w_x*(1-w_y)*(1-w_z)*varvec[ind1] +
+-                  w_x*w_y*(1-w_z)*varvec[ind2] + (1-w_x)*w_y*(1-w_z)*varvec[ind3] +
+-                  (1-w_x)*(1-w_y)*w_z*varvec[ind4] + w_x*(1-w_y)*w_z*varvec[ind5] +
+-                  w_x*w_y*w_z*varvec[ind6] + (1-w_x)*w_y*w_z*varvec[ind7];
+-
+-        //std::cout << "Variable value is " << tmp_var << "\n";
+-}
+-
+ void
+ Problem::init_custom_pert (
+     const Box& bx,
+diff --git a/Exec/DryRegTests/WPS_Test/GNUmakefile b/Exec/DryRegTests/WPS_Test/GNUmakefile
+index e346e04d..f3b1e5ef 100644
+--- a/Exec/DryRegTests/WPS_Test/GNUmakefile
++++ b/Exec/DryRegTests/WPS_Test/GNUmakefile
+@@ -14,14 +14,14 @@ USE_GPROF     = FALSE
+ USE_MPI  = TRUE
+ USE_OMP  = FALSE
+ 
+-USE_CUDA = FALSE
++USE_CUDA = TRUE
+ USE_HIP  = FALSE
+ USE_SYCL = FALSE
+ 
+ # Debugging
+ DEBUG = FALSE
+ 
+-TEST = TRUE
++TEST = FALSE
+ USE_ASSERTION = TRUE
+ 
+ USE_NETCDF  = TRUE
+diff --git a/Source/BoundaryConditions/ERF_ABLMost.cpp b/Source/BoundaryConditions/ERF_ABLMost.cpp
+index 65b3a43b..abd8c3c9 100644
+--- a/Source/BoundaryConditions/ERF_ABLMost.cpp
++++ b/Source/BoundaryConditions/ERF_ABLMost.cpp
+@@ -1,4 +1,5 @@
+ #include <ERF_ABLMost.H>
++#include "ERF_Interpolation_Bilinear.H"
+ 
+ using namespace amrex;
+ 
+@@ -126,11 +127,154 @@ ABLMost::update_fluxes (const int& lev,
+ 
+     } // MOENG -- SEA
+ 
+-    if (flux_type == FluxCalcType::CUSTOM) {
++    /*if (flux_type == FluxCalcType::CUSTOM) {
+         u_star[lev]->setVal(custom_ustar);
+         t_star[lev]->setVal(custom_tstar);
+         q_star[lev]->setVal(custom_qstar);
++    }*/
++
++    if (flux_type == FluxCalcType::CUSTOM) {
++
++		std::string filename;
++		// Open the binary file in input mode
++    	std::ifstream infile("ERF_Surf_IC_Laura_Surface.bin", std::ios::binary);
++    	if (!infile) {
++        	std::cerr << "Error: Could not open file " << filename << std::endl;
++    	}
++
++
++    	int nx, ny, nz, ndata;
++    	float value;
++
++    	Vector<Real> xvec_h, yvec_h, zvec_h;
++
++    	// Read the four integers
++    	infile.read(reinterpret_cast<char*>(&nx), sizeof(int));
++    	infile.read(reinterpret_cast<char*>(&ny), sizeof(int));
++    	infile.read(reinterpret_cast<char*>(&nz), sizeof(int));
++    	infile.read(reinterpret_cast<char*>(&ndata), sizeof(int));
++
++    	amrex::Gpu::DeviceVector<Real> xvec_d(nx*ny*nz), yvec_d(nx*ny*nz), zvec_d(nx*ny*nz);
++    	for(int i=0; i<nx; i++) {
++        	infile.read(reinterpret_cast<char*>(&value), sizeof(float));
++        	xvec_h.emplace_back(value);
++    	}
++    	amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, xvec_h.begin(), xvec_h.end(), xvec_d.begin());
++
++    	for(int j=0; j<ny; j++) {
++        	infile.read(reinterpret_cast<char*>(&value), sizeof(float));
++     	   yvec_h.emplace_back(value);
++	    }
++    	amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, yvec_h.begin(), yvec_h.end(), yvec_d.begin());
++
++		for(int k=0; k<nz; k++) {
++        	infile.read(reinterpret_cast<char*>(&value), sizeof(float));
++        	zvec_h.emplace_back(value);
++    	}
++    	amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, zvec_h.begin(), zvec_h.end(), zvec_d.begin());
++
++		 // Vector to store the data
++    Vector<Real> sst_h, q_star_h, t_star_h, u_star_h, ls_mask_h;
++
++    Vector<Real>* data_h = nullptr; // Declare pointer outside the loop
++
++    Real* xvec_d_ptr = xvec_d.data();
++    Real* yvec_d_ptr = yvec_d.data();
++    Real* zvec_d_ptr = zvec_d.data();
++
++    Real dxvec = (xvec_h[nx-1]-xvec_h[0])/(nx-1);
++    Real dyvec = (yvec_h[ny-1]-yvec_h[0])/(ny-1);
++
++    // Read the file
++    for(int idx=0; idx<ndata; idx++){
++        if(idx == 0){
++            data_h = &sst_h;
++        } else if (idx==1) {
++            data_h = &q_star_h;
++        } else if (idx==2) {
++            data_h = &t_star_h;
++        } else if (idx==3) {
++            data_h = &u_star_h;
++        } else if(idx==4) {
++            data_h = &ls_mask_h;
++        }
++        for(int k=0; k<nz; k++) {
++            for(int j=0; j<ny; j++) {
++                for(int i=0; i<nx; i++) {
++                    infile.read(reinterpret_cast<char*>(&value), sizeof(float));
++                    //if(idx == 3) {
++                        //printf("theta is %0.15g, %0.15g, %0.15g %0.15g\n", xvec_h[i], yvec_h[j], zvec_h[k], value);
++                    //}
++                    data_h->emplace_back(value);
++                }
++            }
++        }
+     }
++
++	infile.close();
++
++    amrex::Gpu::DeviceVector<Real> sst_d(nx*ny*nz), q_star_d(nx*ny*nz), t_star_d(nx*ny*nz), u_star_d(nx*ny*nz), ls_mask_d(nx*ny*nz);
++
++    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, sst_h.begin(), sst_h.end(), sst_d.begin());
++    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, q_star_h.begin(), q_star_h.end(), q_star_d.begin());
++    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, t_star_h.begin(), t_star_h.end(), t_star_d.begin());
++    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, u_star_h.begin(), u_star_h.end(), u_star_d.begin());
++    amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, ls_mask_h.begin(), ls_mask_h.end(), ls_mask_d.begin());
++
++    Real* sst_d_ptr   = sst_d.data();
++    Real* q_star_d_ptr  = q_star_d.data();
++    Real* t_star_d_ptr  = t_star_d.data();
++    Real* u_star_d_ptr  = u_star_d.data();
++    Real* ls_mask_d_ptr = ls_mask_d.data();
++
++	const auto prob_lo  = m_geom[lev].ProbLo();
++	const auto dx       = m_geom[lev].CellSize();
++
++		for (amrex::MFIter mfi(*u_star[lev]); mfi.isValid(); ++mfi) {
++			const Box gtbx = mfi.growntilebox();
++    		auto u_star_arr = u_star[lev]->array(mfi);  
++    		auto t_star_arr = t_star[lev]->array(mfi);  
++    		auto q_star_arr = q_star[lev]->array(mfi);  
++
++	    	ParallelFor(gtbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
++
++				const Real x        = prob_lo[0] + (i + 0.5) * dx[0];
++		        const Real y        = prob_lo[1] + (j + 0.5) * dx[1];
++
++				if(j<0) {
++					//printf("j is negative. value of y is %d %0.15g\n", j, y);
++				} 
++
++
++        		// First interpolate where the weather data is available from
++        		Real tmp_u_star, tmp_q_star, tmp_t_star;
++        		bilinear_interpolation_2d(xvec_d_ptr, yvec_d_ptr,
++                		               dxvec, dyvec,
++                        		       nx, ny,
++                               		   x, y,
++                               		   u_star_d_ptr, tmp_u_star);
++
++				bilinear_interpolation_2d(xvec_d_ptr, yvec_d_ptr,
++                		               dxvec, dyvec,
++                        		       nx, ny,
++                               		   x, y,
++                               		   q_star_d_ptr, tmp_q_star);
++
++				bilinear_interpolation_2d(xvec_d_ptr, yvec_d_ptr,
++                		               dxvec, dyvec,
++                        		       nx, ny,
++                               		   x, y,
++                               		   t_star_d_ptr, tmp_t_star);
++
++
++
++        		u_star_arr(i, j, 0) = tmp_u_star; 
++        		t_star_arr(i, j, 0) = -tmp_t_star/(1.226*1004.5*3600.0); 
++        		q_star_arr(i, j, 0) = -tmp_q_star/(1.226*2260000.0*3600.0); 
++				//printf("ustar is (%0.15g,%0.15g) is %0.15g %0.15g %0.15g\n", x, y, tmp_u_star, t_star_arr(i,j,0), q_star_arr(i,j,0));
++    		});
++		}
++	}
+ }
+ 
+ /**
+diff --git a/Source/ERF.H b/Source/ERF.H
+index 758ac19a..9abb84e6 100644
+--- a/Source/ERF.H
++++ b/Source/ERF.H
+@@ -208,6 +208,7 @@ public:
+     void sum_integrated_quantities (amrex::Real time);
+     void write_1D_profiles (amrex::Real time);
+     void write_1D_profiles_stag (amrex::Real time);
++    void write_1D_temperature (amrex::Real time);
+ 
+     amrex::Real cloud_fraction (amrex::Real time);
+ 
+diff --git a/Source/ERF.cpp b/Source/ERF.cpp
+index 02261aa7..4f5bbcd2 100644
+--- a/Source/ERF.cpp
++++ b/Source/ERF.cpp
+@@ -408,6 +408,8 @@ ERF::Evolve ()
+             m_r2d->read_input_files(cur_time,dt[0],m_bc_extdir_vals);
+         }
+ 
++		HurricaneTracker(max_level);
++
+         int lev = 0;
+         int iteration = 1;
+         timeStep(lev, cur_time, iteration);
+@@ -565,7 +567,11 @@ ERF::post_timestep (int nstep, Real time, Real dt_lev0)
+             // some variables staggered
+             write_1D_profiles_stag(time);
+         }
++		write_1D_temperature(time);
+     }
++		if(nstep==0){
++			write_1D_temperature(time);
++		}
+ 
+     if (output_1d_column) {
+ #ifdef ERF_USE_NETCDF
+diff --git a/Source/ERF_Tagging.cpp b/Source/ERF_Tagging.cpp
+index d349eaf4..314cc51b 100644
+--- a/Source/ERF_Tagging.cpp
++++ b/Source/ERF_Tagging.cpp
+@@ -11,12 +11,59 @@ using namespace amrex;
+  * @param[in] time current time
+ */
+ 
++void ERF::HurricaneTracker(int levc)
++{
++	const auto dx = geom[levc].CellSizeArray();
++    const auto prob_lo = geom[levc].ProbLoArray();
++
++	Real center[2], eye[2];
++	center[0] = 0.9125e6;
++	center[1] = 3.4e6;
++
++	Real radius = 0.6e6;
++
++	Real omega = 1.212034e-5;
++
++	Real rad_tag = 5e5;
++
++	if(levc == 1) {
++		rad_tag = 2.0e5;
++	} else if(levc ==0) {
++		rad_tag = 5.0e5;
++	}
++
++	eye[0] = center[0] + 1.5*radius*std::cos(3.0*M_PI/2.0-omega*time);
++	eye[1] = center[1] + radius*std::sin(3.0*M_PI/2.0-omega*time);
++}
++
+ void
+ ERF::ErrorEst (int levc, TagBoxArray& tags, Real time, int /*ngrow*/)
+ {
+     const int clearval = TagBox::CLEAR;
+     const int   tagval = TagBox::SET;
+ 
++	
++    for (MFIter mfi(tags); mfi.isValid(); ++mfi) {
++        TagBox& tag = tags[mfi];
++
++        const Box& tile_box = mfi.tilebox(); // The box for this tile
++        auto tag_arr = tag.array();  // Get device-accessible array
++
++        ParallelFor(tile_box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
++            // Compute cell center coordinates
++            Real x = prob_lo[0] + (i + 0.5) * dx[0];
++            Real y = prob_lo[1] + (j + 0.5) * dx[1];
++				
++			Real dist = std::sqrt((x - eye[0])*(x - eye[0]) + (y - eye[1])*(y - eye[1]));
++
++            // Tag the cell if it falls within (x_min, x_max) & (y_min, y_max)
++            //if (x >= 0.25e6  && x <= 1.4e6 && y >= 2.4e6 && y <= 3.2e6) {
++            if (dist < rad_tag) {
++                tag_arr(i, j, k) = TagBox::SET;  // Mark for refinement
++            }
++        });
++    }
++
+     //
+     // Make sure the ghost cells of the level we are tagging at are filled
+     //    in case we take differences that require them
+diff --git a/Source/IO/ERF_Write1DProfiles.cpp b/Source/IO/ERF_Write1DProfiles.cpp
+index ca03fad2..6c9e2470 100644
+--- a/Source/IO/ERF_Write1DProfiles.cpp
++++ b/Source/IO/ERF_Write1DProfiles.cpp
+@@ -2,6 +2,8 @@
+ 
+ #include "ERF.H"
+ #include "ERF_EOS.H"
++#include <sstream>
++
+ 
+ using namespace amrex;
+ 
+@@ -561,3 +563,54 @@ ERF::derive_stress_profiles (Gpu::HostVector<Real>& h_avg_tau11, Gpu::HostVector
+         h_avg_diss[k] /= area_z;
+     }
+ }
++
++std::string formatSimulationTime(int simTime) {
++    std::ostringstream oss;
++    oss << std::setw(7) << std::setfill('0') << simTime;  // Ensure 7 digits with zero-padding
++    return oss.str();
++}
++
++void 
++ERF::write_1D_temperature(const Real time)
++{
++	int lev = 0.0;
++	const int nlev = geom[0].Domain().size()[2]; // Number of vertical levels
++
++	Gpu::DeviceVector<Real> avg_d(nlev, -1e20);
++    Real* avg_ptr = avg_d.data();
++   
++    // Loop over MultiFab and accumulate sums
++    for (MFIter mfi(vars_new[lev][Vars::cons], TilingIfNotGPU()); mfi.isValid(); ++mfi) {
++		const Array4<Real const>&  S_arr = vars_new[lev][Vars::cons].const_array(mfi);
++        const Box& bx = mfi.validbox();
++
++        ParallelFor(bx, [=]AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
++			Real qv = S_arr(i,j,k,RhoQ1_comp)/S_arr(i,j,k,Rho_comp);
++            Real T = getTgivenRandRTh(S_arr(i,j,k,Rho_comp), S_arr(i,j,k,RhoTheta_comp), qv);
++            Gpu::Atomic::Max(&avg_ptr[k], T);
++        });
++    }
++
++	// Copy results back to host
++    Vector<Real> avg_h(nlev, 0.0);
++    Vector<Real> count_h(nlev, 0.0);
++    Gpu::copy(Gpu::deviceToHost, avg_d.begin(), avg_d.end(), avg_h.begin());
++	ParallelDescriptor::ReduceRealMax(avg_h.data(), nlev);
++
++	if (ParallelDescriptor::IOProcessor()) {
++		std::string base_filename = "output";
++    	std::string time_str = formatSimulationTime(time);
++    	std::string filename = base_filename + "_" + time_str + ".txt";
++
++    	std::ofstream outfile(filename);
++		if (!outfile) {
++  			std::cerr << "Error: Unable to open file " << filename << std::endl;
++    		return;
++		}
++    	for (int k = 0; k < avg_h.size(); ++k) {
++        	outfile << k << " " << avg_h[k] << std::endl;
++    	}
++    	outfile.close();
++	}	
++}
++
+diff --git a/Source/SourceTerms/ERF_ApplySpongeZoneBCs.cpp b/Source/SourceTerms/ERF_ApplySpongeZoneBCs.cpp
+index ed155c23..1a247676 100644
+--- a/Source/SourceTerms/ERF_ApplySpongeZoneBCs.cpp
++++ b/Source/SourceTerms/ERF_ApplySpongeZoneBCs.cpp
+@@ -107,7 +107,7 @@ ApplySpongeZoneBCsForCC (
+         if(use_zhi_sponge_damping){
+             if (z > zhi_sponge_start) {
+                 Real xi = (z - zhi_sponge_start) / (ProbHiArr[2] - zhi_sponge_start);
+-                cell_rhs(i, j, k, 0) -= sponge_strength * xi * xi * (cell_data(i, j, k, 0) - sponge_density);
++                //cell_rhs(i, j, k, 0) -= sponge_strength * xi * xi * (cell_data(i, j, k, 0) - sponge_density);
+             }
+         }
+     });
+@@ -228,7 +228,7 @@ ApplySpongeZoneBCsForMom (
+         if(use_zhi_sponge_damping){
+             if (z > zhi_sponge_start) {
+                 Real xi = (z - zhi_sponge_start) / (ProbHiArr[2] - zhi_sponge_start);
+-                rho_u_rhs(i, j, k) -= sponge_strength * xi * xi * (rho_u(i, j, k) - sponge_density*sponge_x_velocity);
++                //rho_u_rhs(i, j, k) -= sponge_strength * xi * xi * (rho_u(i, j, k) - sponge_density*sponge_x_velocity);
+             }
+         }
+     });
+@@ -287,7 +287,7 @@ ApplySpongeZoneBCsForMom (
+         if(use_zhi_sponge_damping){
+             if (z > zhi_sponge_start) {
+                 Real xi = (z - zhi_sponge_start) / (ProbHiArr[2] - zhi_sponge_start);
+-                rho_v_rhs(i, j, k) -= sponge_strength * xi * xi * (rho_v(i, j, k) - sponge_density*sponge_y_velocity);
++                //rho_v_rhs(i, j, k) -= sponge_strength * xi * xi * (rho_v(i, j, k) - sponge_density*sponge_y_velocity);
+             }
+         }
+     });
+diff --git a/Submodules/AMReX b/Submodules/AMReX
+index 63e03ea8..78bdf0fa 160000
+--- a/Submodules/AMReX
++++ b/Submodules/AMReX
+@@ -1 +1 @@
+-Subproject commit 63e03ea81732cd9efccca82817fa03898dc8e875
++Subproject commit 78bdf0faabc4101d5333ebb421e553efcc7ec04e
+diff --git a/Submodules/RRTMGP b/Submodules/RRTMGP
+index b24ca1f6..ddf82a25 160000
+--- a/Submodules/RRTMGP
++++ b/Submodules/RRTMGP
+@@ -1 +1 @@
+-Subproject commit b24ca1f616e45659b334dbd7297017cb7927367e
++Subproject commit ddf82a25a3a59a8f0fe904b69181cb7bd99881fb
