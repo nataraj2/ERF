@@ -210,7 +210,12 @@ public:
     void write_1D_profiles_stag (amrex::Real time);
     void write_1D_temperature (amrex::Real time);
 
-    void HurricaneTracker(int lev, amrex::Real time, amrex::Real& eye_x, amrex::Real& eye_y);
+    void HurricaneTracker(int lev,
+                          const amrex::MultiFab& U_new,
+                          const amrex::MultiFab& V_new,
+                          const amrex::MultiFab& W_new,
+                          const amrex::Real velmag_threshold,
+                          amrex::TagBoxArray& tags);
 
     amrex::Real cloud_fraction (amrex::Real time);
 

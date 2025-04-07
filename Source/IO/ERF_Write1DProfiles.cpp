@@ -573,7 +573,7 @@ std::string formatSimulationTime(int simTime) {
 void
 ERF::write_1D_temperature(const Real time)
 {
-    int lev = 0.0;
+    int lev = 0;
     const int nlev = geom[0].Domain().size()[2]; // Number of vertical levels
 
     Gpu::DeviceVector<Real> avg_d(nlev, -1e20);

@@ -565,10 +565,10 @@ ERF::post_timestep (int nstep, Real time, Real dt_lev0)
             // some variables staggered
             write_1D_profiles_stag(time);
         }
-        write_1D_temperature(time);
+        //write_1D_temperature(time);
     }
         if(nstep==0){
-            write_1D_temperature(time);
+            //write_1D_temperature(time);
         }
 
     if (output_1d_column) {
