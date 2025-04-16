@@ -620,6 +620,44 @@ ERF::post_timestep (int nstep, Real time, Real dt_lev0)
         make_zcc(geom[lev],*z_phys_nd[lev],*z_phys_cc[lev]);
       }
     }
+
+	bool is_hurricane_tracker_io;
+	ParmParse pp("erf");
+	if (pp.query("is_hurricane_tracker", is_hurricane_tracker_io)) {
+		if (ParallelDescriptor::IOProcessor()) { 
+    		Print() << "Hurricane tracking is " << is_hurricane_tracker_io << "\n";
+		}
+	}
+	
+	if(is_hurricane_tracker_io) {
+		if(nstep == 0 or (nstep+1)%m_plot_int_1 == 0){
+			std::string filename = MakeVTKFilename(nstep);
+			ParmParse pp("erf");
+			Real velmag_threshold = 1e10;
+		   	pp.query("hurr_track_io_velmag_greater_than", velmag_threshold);
+				
+      		for (int levc = 0; levc <= 0; levc--) {
+				MultiFab& S_new = vars_new[levc][Vars::cons];
+	    		MultiFab& U_new = vars_new[levc][Vars::xvel];
+    			MultiFab& V_new = vars_new[levc][Vars::yvel];
+ 	   			MultiFab& W_new = vars_new[levc][Vars::zvel];
+
+				/*if (levc == 0) {
+        			FillPatch(levc, time, {&S_new, &U_new, &V_new, &W_new});
+    			} else {
+        			FillPatch(levc, time, {&S_new, &U_new, &V_new, &W_new},
+                              {&S_new, &rU_new[levc], &rV_new[levc], &rW_new[levc]},
+                              base_state[levc], base_state[levc],
+                              false, true);
+				}*/
+				HurricaneTracker(levc, U_new, V_new, W_new, velmag_threshold, true);
+			}
+			if (ParallelDescriptor::IOProcessor()) {	
+				//WriteVTKPolyline(filename,hurricane_track_xy);
+			}
+		}
+	}
+
 } // post_timestep
 
 // This is called from main.cpp and handles all initialization, whether from start or restart
@@ -991,6 +1029,19 @@ ERF::InitData_post ()
 
     }
 
+	// Copying the intiial state to initial_state for use in boundary condition
+	initial_state.resize(max_level+1);
+	for (int lev = 0; lev < max_level+1; ++lev) {
+    	initial_state[lev].resize(vars_new[lev].size());
+    	for (int comp = 0; comp < vars_new[lev].size(); ++comp) {
+        	const MultiFab& src = vars_new[lev][comp];
+        	initial_state[lev][comp].define(src.boxArray(), src.DistributionMap(),
+                                        src.nComp(), src.nGrow());
+        	MultiFab::Copy(initial_state[lev][comp], src,
+                              0, 0, src.nComp(), src.nGrow());
+    	}
+	}
+	
     // Allow idealized cases over water, used to set lmask
     ParmParse pp("erf");
     int is_land;

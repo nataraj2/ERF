@@ -17,7 +17,8 @@ ERF::HurricaneTracker(int levc,
                       const MultiFab& V_new,
                       const MultiFab& W_new,
                       const Real velmag_threshold,
-                      TagBoxArray& tags)
+					  const bool is_track_io,
+                      TagBoxArray* tags)
 {
     const auto dx = geom[levc].CellSizeArray();
     const auto prob_lo = geom[levc].ProbLoArray();
@@ -74,6 +75,8 @@ ERF::HurricaneTracker(int levc,
                            h_found.size(),
                            ParallelContext::CommunicatorAll());
 
+	std::cout << "The value of h_found is " << h_found[0] << " " << levc << "\n";
+
     Real eye_x, eye_y;
     // Broadcast coordinates if found
     if (h_found[0] > 0) {
@@ -87,7 +90,11 @@ ERF::HurricaneTracker(int levc,
         eye_x = h_coords[0]/h_found[0];
         eye_y = h_coords[1]/h_found[0];
 
-
+		// Data structure to hold the hurricane track for I/O
+		if (amrex::ParallelDescriptor::IOProcessor() and is_track_io and levc==0) {
+			hurricane_track_xy.push_back({eye_x, eye_y});
+		}
+	
         /*std::cout << "Threshold exceeded at: " << h_coords[0]/h_found[0] << " " <<
                                                   h_coords[1]/h_found[0] << " " <<
                                                   h_coords[2]/h_found[0] << " " <<
@@ -100,10 +107,11 @@ ERF::HurricaneTracker(int levc,
         std::cout << "No point exceeded the threshold." << std::endl;
     }
 
+	if(!is_track_io) {
      Real rad_tag = 3e5*std::pow(2, max_level-1-levc);
 
-    for (MFIter mfi(tags); mfi.isValid(); ++mfi) {
-        TagBox& tag = tags[mfi];
+    for (MFIter mfi(*tags); mfi.isValid(); ++mfi) {
+        TagBox& tag = (*tags)[mfi];
         auto tag_arr = tag.array();  // Get device-accessible array
 
         const Box& tile_box = mfi.tilebox(); // The box for this tile
@@ -120,6 +128,7 @@ ERF::HurricaneTracker(int levc,
             }
         });
     }
+	}
 }
 
 void
@@ -202,7 +211,7 @@ ERF::ErrorEst (int levc, TagBoxArray& tags, Real time, int /*ngrow*/)
                     break;
                 }
             }
-            HurricaneTracker(levc, U_new, V_new, W_new, velmag_threshold, tags);
+            HurricaneTracker(levc, U_new, V_new, W_new, velmag_threshold, false, &tags);
 #ifdef ERF_USE_PARTICLES
         } else {
             //

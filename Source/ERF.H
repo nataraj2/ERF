@@ -215,8 +215,15 @@ public:
                           const amrex::MultiFab& V_new,
                           const amrex::MultiFab& W_new,
                           const amrex::Real velmag_threshold,
-                          amrex::TagBoxArray& tags);
+						  const bool is_track_io,
+                          amrex::TagBoxArray* tags = nullptr);
 
+	amrex::Vector<std::array<amrex::Real, 2>> hurricane_track_xy;
+	amrex::Vector<amrex::Vector<amrex::MultiFab>> initial_state;
+	std::string MakeVTKFilename(int nstep);
+	void WriteVTKPolyline(const std::string& filename, 
+					 	  amrex::Vector<std::array<amrex::Real, 2>>& points_xy);
+	
     amrex::Real cloud_fraction (amrex::Real time);
 
     // Fill the physical boundary conditions for cell-centered velocity (diagnostic only)
