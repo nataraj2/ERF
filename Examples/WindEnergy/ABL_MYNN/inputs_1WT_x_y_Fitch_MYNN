@@ -7,13 +7,7 @@ fabarray.mfiter_tile_size = 1024 1024 1024
 
 # PROBLEM SIZE & GEOMETRY
 geometry.prob_extent =  100000.0 100000.0  3000.0
-amr.n_cell           =   100     100       300
-
-# WINDFARM PARAMETRIZATION PARAMETERS
-erf.windfarm_type = "Fitch"
-erf.windfarm_loc_type = "x_y"
-erf.windfarm_loc_table = "windturbines-ij.txt"
-erf.windfarm_spec_table = "windturbines_spec_1WT.tbl"
+amr.n_cell           =   600     600       300
 
 geometry.is_periodic = 1 1 0
 
