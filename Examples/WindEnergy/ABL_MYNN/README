@@ -1,2 +1,2 @@
-This folder contains an example of the Fitch wind farm parametetrization  
-for a single turbine case. 
+This folder contains an example of an atmospheric boundary layer (ABL)
+simulation with the MYNN planetary boundary layer (PBL) scheme.
