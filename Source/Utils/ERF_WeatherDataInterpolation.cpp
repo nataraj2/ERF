@@ -246,34 +246,39 @@ find_bound_idx(const Real& x, const Real& y, const Real& z,
 }
 
 void
-ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
-                                    MultiFab& weather_forecast_interp)
+ERF::CreateForecastStateMultiFabs(Vector<Vector<MultiFab>>& forecast_state)
 {
-
     ParmParse pp_erf("erf");
     bool is_lateral_sponges_hurricanes = false;
     if (pp_erf.query("is_lateral_sponges_hurricanes", is_lateral_sponges_hurricanes)) {
-        initial_state.resize(max_level+1);
+        forecast_state.resize(max_level+1);
         for (int lev = 0; lev < max_level+1; ++lev) {
-            initial_state[lev].resize(vars_new[lev].size()+1);
+            forecast_state[lev].resize(vars_new[lev].size()+1);
             for (int comp = 0; comp < vars_new[lev].size(); ++comp) {
                 const MultiFab& src = vars_new[lev][comp];
-                initial_state[lev][comp].define(src.boxArray(), src.DistributionMap(),
+                forecast_state[lev][comp].define(src.boxArray(), src.DistributionMap(),
                                         src.nComp(), src.nGrow());
             }
             int comp = vars_new[lev].size();
             const MultiFab& src = vars_new[lev][0];
-            initial_state[lev][comp].define(src.boxArray(), src.DistributionMap(),
+            forecast_state[lev][comp].define(src.boxArray(), src.DistributionMap(),
                                         2, src.nGrow());
         }
     }
+}
 
-    MultiFab& weather_mf    = weather_forecast_interp;
-    MultiFab& erf_mf_cons   = initial_state[0][Vars::cons];
-    MultiFab& erf_mf_xvel   = initial_state[0][Vars::xvel];
-    MultiFab& erf_mf_yvel   = initial_state[0][Vars::yvel];
-    MultiFab& erf_mf_zvel   = initial_state[0][Vars::zvel];
-    MultiFab& erf_mf_latlon = initial_state[0][4];
+void
+ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
+                                const MultiFab& weather_forecast_data,
+                                Vector<Vector<MultiFab>& forecast_state)
+{
+
+    MultiFab& weather_mf    = weather_forecast_data;
+    MultiFab& erf_mf_cons   = forecast_state[0][Vars::cons];
+    MultiFab& erf_mf_xvel   = forecast_state[0][Vars::xvel];
+    MultiFab& erf_mf_yvel   = forecast_state[0][Vars::yvel];
+    MultiFab& erf_mf_zvel   = forecast_state[0][Vars::zvel];
+    MultiFab& erf_mf_latlon = forecast_state[0][4];
 
     erf_mf_cons.setVal(0.0);
     erf_mf_xvel.setVal(0.0);
@@ -577,27 +582,26 @@ ERF::WeatherDataInterpolation(const Real time)
                                 dm,
                                 weather_forecast_data_1);
 
+        CreateForecastStateMultiFabs(forecast_state_1);
+        InterpWeatherDataOntoMesh(geom_weather, weather_forecast_data_1[0], forecast_state_1);
+
         FillWeatherDataMultiFab(filename2,
                                 geom_weather,
                                 nba,
                                 dm,
                                 weather_forecast_data_2);
+        CreateForecastStateMultiFabs(forecast_state_2);
+        InterpWeatherDataOntoMesh(geom_weather, weather_forecast_data_2[0], forecast_state_2);
 
-        //Interpolate in time to get the weather_forecast_interp
-        int ncomp = weather_forecast_data_1[0].nComp();
-        MultiFab weather_forecast_interp(nba, dm, ncomp, 0);
-        Real alpha1 = 1.0 - (time - next_read_forecast_time)/10800.0;
-        Real alpha2 = 1.0 - alpha1;
-
-        MultiFab::LinComb(weather_forecast_interp,
-                          alpha1, weather_forecast_data_1[0], 0,
-                          alpha2, weather_forecast_data_2[0], 0,
-                             0, ncomp, 0);
-
-        //Interpolate in space to get the erf_forecast_interp
-        InterpWeatherDataOntoMesh(geom_weather, weather_forecast_data_1[0]);
+        CreateForecastStateMultiFabs(forecast_state_interp);
         next_read_forecast_time += 10800.0;
     }
-}
+    Real alpha1 = 1.0 - (time - next_read_forecast_time)/10800.0;
+    Real alpha2 = 1.0 - alpha1;
 
+    MultiFab::LinComb(forecast_state_interp,
+                      alpha1, forecast_state_1, 0,
+                      alpha2, forecast_state_2, 0,
+                      0, ncomp, 0);
+}
 #endif

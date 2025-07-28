@@ -142,7 +142,9 @@ public:
 
     // Hurricane track line output as VTKPolyline
     amrex::Vector<std::array<amrex::Real, 2>> hurricane_track_xy;
-    amrex::Vector<amrex::Vector<amrex::MultiFab>> initial_state;
+    amrex::Vector<amrex::Vector<amrex::MultiFab>> forecast_state_1, 
+                                                  forecast_state_2,
+                                                  forecast_state_interp;
     std::string MakeVTKFilename(int nstep);
     void WriteVTKPolyline(const std::string& filename,
                           amrex::Vector<std::array<amrex::Real, 2>>& points_xy);
@@ -426,6 +428,9 @@ public:
 
     void InterpWeatherDataOntoMesh(const amrex::Geometry& geom_weather,
                                        amrex::MultiFab& weather_forecast_interp);
+
+
+    void CreateForecastStateMultiFabs(amrex::Vector<amrex::Vector<amrex::MultiFab>>& forecast_state);
 
     void WeatherDataInterpolation(const amrex::Real time);
 
