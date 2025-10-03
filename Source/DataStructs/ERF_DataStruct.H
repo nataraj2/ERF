@@ -190,6 +190,7 @@ struct SolverChoice {
             moisture_indices = MoistureComponentIndices(
                 RhoQ1_comp,  // water vapor
                 RhoQ2_comp,  // cloud water
+                -1,          // cloud ice
                 RhoQ3_comp   // rain
             );
         }
@@ -962,7 +963,10 @@ struct SolverChoice {
     amrex::Real hindcast_lateral_sponge_strength = -1.0, hindcast_lateral_sponge_length = -1.0;
     amrex::Real hindcast_zhi_sponge_strength = -1.0, hindcast_zhi_sponge_length = -1.0;
     bool hindcast_zhi_sponge_damping = false;
+<<<<<<< HEAD
     std::string hindcast_surface_data_dir;
     bool hindcast_surface_fluxes = false;
+=======
+>>>>>>> upstream/development
 };
 #endif

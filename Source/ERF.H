@@ -160,7 +160,6 @@ public:
                                                   surface_state_2,
                                                   surface_state_interp;
 
-
     std::string MakeVTKFilename(int nstep);
     void WriteVTKPolyline(const std::string& filename,
                           amrex::Vector<std::array<amrex::Real, 2>>& points_xy);
@@ -223,8 +222,8 @@ public:
     void restart ();
 
     // Is it time to write a plotfile or checkpoint?
-    bool writeNow (const amrex::Real cur_time, const amrex::Real dt, const int nstep,
-                   const int plot_int, const amrex::Real plot_per);
+    bool writeNow (const amrex::Real cur_time, const int nstep, const int plot_int,
+                   const amrex::Real plot_per, const amrex::Real dt_0, amrex::Real& last_file_time);
 
     // Called after every level 0 timestep
     void post_timestep (int nstep, amrex::Real time, amrex::Real dt_lev);
@@ -374,12 +373,10 @@ public:
 
 #ifdef ERF_USE_SHOC
     void compute_shoc_tendencies (int lev,
-                                  amrex::MultiFab& cons_in,
-                                  amrex::MultiFab& xvel_in,
-                                  amrex::MultiFab& yvel_in,
-                                  amrex::MultiFab& zvel_in,
-                                  amrex::MultiFab& source,    amrex::MultiFab& xmom_src,
-                                  amrex::MultiFab& ymom_src,  amrex::MultiFab& zmom_src,
+                                  amrex::MultiFab& cons,
+                                  amrex::MultiFab& xvel,
+                                  amrex::MultiFab& yvel,
+                                  amrex::MultiFab& zvel,
                                   const amrex::Real& dt_advance);
 #endif
 
@@ -464,9 +461,16 @@ public:
                                  amrex::Vector<amrex::MultiFab>& weather_forecast_data);
 
     void InterpWeatherDataOntoMesh(const amrex::Geometry& geom_weather,
+<<<<<<< HEAD
 		    		   const std::unique_ptr<amrex::MultiFab>& z_phys_nd, 
                                    amrex::MultiFab& weather_forecast_interp,
                                    amrex::Vector<amrex::Vector<amrex::MultiFab>>& forecast_state);
+=======
+                                   amrex::MultiFab& weather_forecast_interp,
+                                   amrex::Vector<amrex::Vector<amrex::MultiFab>>& forecast_state);
+
+    void CreateForecastStateMultiFabs(amrex::Vector<amrex::Vector<amrex::MultiFab>>& forecast_state);
+>>>>>>> upstream/development
 
     void CreateForecastStateMultiFabs(amrex::Vector<amrex::Vector<amrex::MultiFab>>& forecast_state);
 
@@ -738,10 +742,10 @@ private:
     amrex::Vector<amrex::Vector<amrex::FArrayBox>> bdy_data_ylo;
     amrex::Vector<amrex::Vector<amrex::FArrayBox>> bdy_data_yhi;
 
+    amrex::Vector<amrex::Vector<amrex::FArrayBox>> low_data_zlo;
+
     // Maximum value of terrain read in from wrfinput at level 0
     amrex::Real z_top = 0.;
-
-    amrex::Vector<amrex::FArrayBox> low_data_zlo;
 
 #endif // ERF_USE_NETCDF
 
@@ -855,8 +859,10 @@ private:
 #endif
 
     LandSurface lsm;
-    amrex::Vector<amrex::Vector<amrex::MultiFab*>> lsm_data; // (lev,ncomp) Components: theta, q1, q2
-    amrex::Vector<amrex::Vector<amrex::MultiFab*>> lsm_flux; // (lev,ncomp) Components: theta, q1, q2
+    amrex::Vector<std::string> lsm_data_name;                // (ncomp)
+    amrex::Vector<amrex::Vector<amrex::MultiFab*>> lsm_data; // (lev,ncomp)
+    amrex::Vector<std::string> lsm_flux_name;                // (ncomp)
+    amrex::Vector<amrex::Vector<amrex::MultiFab*>> lsm_flux; // (lev,ncomp)
 
     amrex::Vector<std::unique_ptr<IRadiation>> rad; // Radiation model at each level
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> qheating_rates;  // radiation heating rate source terms (SW, LW)
@@ -978,14 +984,21 @@ private:
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> thin_yforce;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> thin_zforce;
 
-    int last_plot3d_file_step_1;
-    int last_plot3d_file_step_2;
-    int last_plot2d_file_step_1;
-    int last_plot2d_file_step_2;
-    int last_subvol;
+    static int last_plot3d_file_step_1;
+    static int last_plot3d_file_step_2;
+    static int last_plot2d_file_step_1;
+    static int last_plot2d_file_step_2;
+    static int last_check_file_step;
+    static int last_subvol_step;
 
-    int last_check_file_step;
-    int plot_file_on_restart = 1;
+    static amrex::Real last_plot3d_file_time_1;
+    static amrex::Real last_plot3d_file_time_2;
+    static amrex::Real last_plot2d_file_time_1;
+    static amrex::Real last_plot2d_file_time_2;
+    static amrex::Real last_check_file_time;
+    static amrex::Real last_subvol_time;
+
+    static bool plot_file_on_restart;
 
     // Output control
     const int datwidth = 14;
@@ -997,7 +1010,7 @@ private:
     // runtime parameters
 
     // Maximum number of steps
-    int max_step = std::numeric_limits<int>::max();
+    int max_step = -1;
 
     // Start and stop times
     static amrex::Real start_time;
@@ -1531,9 +1544,12 @@ private:
     }
 
     // Data sampler for line and plane output
-    int sampler_interval = -1;
-    amrex::Real sampler_per = -1.0;
-    std::unique_ptr<SampleData> data_sampler = nullptr;
+    int line_sampling_interval = -1;
+    int plane_sampling_interval = -1;
+    amrex::Real line_sampling_per = -1.0;
+    amrex::Real plane_sampling_per = -1.0;
+    std::unique_ptr<LineSampler> line_sampler = nullptr;
+    std::unique_ptr<PlaneSampler> plane_sampler = nullptr;
 
     amrex::Vector<std::unique_ptr<std::fstream> >       datalog;
     amrex::Vector<std::unique_ptr<std::fstream> >   der_datalog;

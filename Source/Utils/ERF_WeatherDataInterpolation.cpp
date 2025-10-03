@@ -342,9 +342,12 @@ ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
         const Box &gtbx = mfi.tilebox(IntVect(1,0,0));
         const Box &gtby = mfi.tilebox(IntVect(0,1,0));
         //const Box &gtbz = mfi.tilebox(IntVect(0,0,1));
+<<<<<<< HEAD
 	
 	const auto z_arr    = (z_phys_nd) ? z_phys_nd->const_array(mfi) :
                                             Array4<const Real> {};
+=======
+>>>>>>> upstream/development
 
         ParallelFor(gbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
              // Physical location of the fine node
@@ -567,7 +570,11 @@ ERF::WeatherDataInterpolation(const Real time,
                                 weather_forecast_data_1);
 
         CreateForecastStateMultiFabs(forecast_state_1);
+<<<<<<< HEAD
         InterpWeatherDataOntoMesh(geom_weather, z_phys_nd, weather_forecast_data_1[0], forecast_state_1);
+=======
+        InterpWeatherDataOntoMesh(geom_weather, weather_forecast_data_1[0], forecast_state_1);
+>>>>>>> upstream/development
 
         FillWeatherDataMultiFab(filename2,
                                 geom_weather,
@@ -575,7 +582,11 @@ ERF::WeatherDataInterpolation(const Real time,
                                 dm,
                                 weather_forecast_data_2);
         CreateForecastStateMultiFabs(forecast_state_2);
+<<<<<<< HEAD
         InterpWeatherDataOntoMesh(geom_weather, z_phys_nd, weather_forecast_data_2[0], forecast_state_2);
+=======
+        InterpWeatherDataOntoMesh(geom_weather, weather_forecast_data_2[0], forecast_state_2);
+>>>>>>> upstream/development
 
         CreateForecastStateMultiFabs(forecast_state_interp);
 

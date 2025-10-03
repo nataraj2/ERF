@@ -199,7 +199,7 @@
                const Array4<Real      > pi0_new_arr = pi0_new->array(mfi);
                const Array4<Real      > th0_new_arr = th0_new->array(mfi);
 
-               const Array4<Real      >& z_t_arr      =  z_t_rk[level]->array(mfi);
+               const Array4<Real      >& z_t_arr    =  z_t_rk[level]->array(mfi);
 
                const Array4<Real const>& dJ_old_arr = detJ_cc[level]->const_array(mfi);
                const Array4<Real const>& dJ_new_arr = detJ_cc_new[level]->const_array(mfi);
@@ -248,7 +248,7 @@
         if (solverChoice.use_real_bcs && (level == 0)) {
             if (real_width>0) {
                 realbdy_compute_interior_ghost_rhs(bdy_time_interval,
-                                                   new_stage_time, slow_dt, stop_time,
+                                                   new_stage_time, slow_dt, stop_time-start_time,
                                                    real_width, real_set_width, fine_geom,
                                                    S_rhs, S_old, S_data,
                                                    bdy_data_xlo, bdy_data_xhi,
