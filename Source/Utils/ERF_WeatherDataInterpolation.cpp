@@ -266,7 +266,7 @@ ERF::CreateForecastStateMultiFabs(Vector<Vector<MultiFab>>& forecast_state)
 
 void
 ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
-				const std::unique_ptr<MultiFab>& z_phys_nd,
+                const std::unique_ptr<MultiFab>& z_phys_nd,
                                 MultiFab& weather_forecast_data,
                                 Vector<Vector<MultiFab>>& forecast_state)
 {
@@ -342,8 +342,8 @@ ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
         const Box &gtbx = mfi.tilebox(IntVect(1,0,0));
         const Box &gtby = mfi.tilebox(IntVect(0,1,0));
         //const Box &gtbz = mfi.tilebox(IntVect(0,0,1));
-	
-	const auto z_arr    = (z_phys_nd) ? z_phys_nd->const_array(mfi) :
+
+    const auto z_arr    = (z_phys_nd) ? z_phys_nd->const_array(mfi) :
                                             Array4<const Real> {};
 
         ParallelFor(gbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -502,7 +502,7 @@ ERF::FillWeatherDataMultiFab(const std::string& filename,
 
 void
 ERF::WeatherDataInterpolation(const Real time,
-			      const std::unique_ptr<MultiFab>& z_phys_nd)
+                  const std::unique_ptr<MultiFab>& z_phys_nd)
 {
 
     static Real next_read_forecast_time = -1.0;
