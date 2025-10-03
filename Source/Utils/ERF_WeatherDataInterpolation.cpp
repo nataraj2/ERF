@@ -266,6 +266,7 @@ ERF::CreateForecastStateMultiFabs(Vector<Vector<MultiFab>>& forecast_state)
 
 void
 ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
+				const std::unique_ptr<MultiFab>& z_phys_nd,
                                 MultiFab& weather_forecast_data,
                                 Vector<Vector<MultiFab>>& forecast_state)
 {
@@ -341,12 +342,16 @@ ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
         const Box &gtbx = mfi.tilebox(IntVect(1,0,0));
         const Box &gtby = mfi.tilebox(IntVect(0,1,0));
         //const Box &gtbz = mfi.tilebox(IntVect(0,0,1));
+	
+	const auto z_arr    = (z_phys_nd) ? z_phys_nd->const_array(mfi) :
+                                            Array4<const Real> {};
 
         ParallelFor(gbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
              // Physical location of the fine node
             Real x = prob_lo_erf[0] + (i+0.5) * dx_erf[0];
             Real y = prob_lo_erf[1] + (j+0.5) * dx_erf[1];
-            Real z = prob_lo_erf[2] + (k+0.5) * dx_erf[2];
+            //Real z = prob_lo_erf[2] + (k+0.5) * dx_erf[2];
+            Real z = z_arr(i,j,k);
 
             Real rho    = interpolate_from_coarse(crse_arr, 0, x, y, z, prob_lo_weather.data(), dx_weather.data());
             Real lat    = interpolate_from_coarse(crse_arr, 8, x, y, z, prob_lo_weather.data(), dx_weather.data());
@@ -363,14 +368,16 @@ ERF::InterpWeatherDataOntoMesh (const Geometry& geom_weather,
              // Physical location of the fine node
             Real x = prob_lo_erf[0] + i       * dx_erf[0];
             Real y = prob_lo_erf[1] + (j+0.5) * dx_erf[1];
-            Real z = prob_lo_erf[2] + (k+0.5) * dx_erf[2];
+            //Real z = prob_lo_erf[2] + (k+0.5) * dx_erf[2];
+            Real z = z_arr(i,j,k);
             fine_xvel_arr(i, j, k, 0) = interpolate_from_coarse(crse_arr, 1, x, y, z, prob_lo_weather.data(), dx_weather.data());
         },
         [=] AMREX_GPU_DEVICE(int i, int j, int k) {
              // Physical location of the fine node
             Real x = prob_lo_erf[0] + (i+0.5) * dx_erf[0];
             Real y = prob_lo_erf[1] + j       * dx_erf[1];
-            Real z = prob_lo_erf[2] + (k+0.5) * dx_erf[2];
+            //Real z = prob_lo_erf[2] + (k+0.5) * dx_erf[2];
+            Real z = z_arr(i,j,k);
             fine_yvel_arr(i, j, k, 0) = interpolate_from_coarse(crse_arr, 2, x, y, z, prob_lo_weather.data(), dx_weather.data());
         });
     }
@@ -494,7 +501,8 @@ ERF::FillWeatherDataMultiFab(const std::string& filename,
 }
 
 void
-ERF::WeatherDataInterpolation(const Real time)
+ERF::WeatherDataInterpolation(const Real time,
+			      const std::unique_ptr<MultiFab>& z_phys_nd)
 {
 
     static Real next_read_forecast_time = -1.0;
@@ -559,7 +567,7 @@ ERF::WeatherDataInterpolation(const Real time)
                                 weather_forecast_data_1);
 
         CreateForecastStateMultiFabs(forecast_state_1);
-        InterpWeatherDataOntoMesh(geom_weather, weather_forecast_data_1[0], forecast_state_1);
+        InterpWeatherDataOntoMesh(geom_weather, z_phys_nd, weather_forecast_data_1[0], forecast_state_1);
 
         FillWeatherDataMultiFab(filename2,
                                 geom_weather,
@@ -567,7 +575,7 @@ ERF::WeatherDataInterpolation(const Real time)
                                 dm,
                                 weather_forecast_data_2);
         CreateForecastStateMultiFabs(forecast_state_2);
-        InterpWeatherDataOntoMesh(geom_weather, weather_forecast_data_2[0], forecast_state_2);
+        InterpWeatherDataOntoMesh(geom_weather, z_phys_nd, weather_forecast_data_2[0], forecast_state_2);
 
         CreateForecastStateMultiFabs(forecast_state_interp);
 

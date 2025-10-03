@@ -91,6 +91,15 @@ ERF::Advance (int lev, Real time, Real dt_lev, int iteration, int /*ncycle*/)
         }
     }
 
+    // **************************************************************************************
+    // Surface data interpolation
+    // **************************************************************************************
+    if(solverChoice.init_type == InitType::HindCast and
+       solverChoice.hindcast_surface_fluxes){
+        SurfaceDataInterpolation(time);
+    }
+
+
     // configure SurfaceLayer params if needed
     if (phys_bc_type[Orientation(Direction::z,Orientation::low)] == ERF_BC::surface_layer) {
         if (m_SurfaceLayer) {
@@ -115,7 +124,8 @@ ERF::Advance (int lev, Real time, Real dt_lev, int iteration, int /*ncycle*/)
             m_SurfaceLayer->update_mac_ptrs(lev, vars_old, Theta_prim, Qv_prim, Qr_prim);
             m_SurfaceLayer->update_pblh(lev, vars_old, z_phys_cc[lev].get(),
                                         solverChoice.moisture_indices);
-            m_SurfaceLayer->update_fluxes(lev, time, S_old, z_phys_nd[lev]);
+            m_SurfaceLayer->update_fluxes(lev, time, S_old, z_phys_nd[lev],
+                                          (solverChoice.hindcast_surface_fluxes? &surface_state_interp[lev] : nullptr));
         }
     }
 
@@ -136,7 +146,7 @@ ERF::Advance (int lev, Real time, Real dt_lev, int iteration, int /*ncycle*/)
     // **************************************************************************************
     if(solverChoice.init_type == InitType::HindCast and
        solverChoice.hindcast_lateral_forcing){
-       WeatherDataInterpolation(time);
+       WeatherDataInterpolation(time, z_phys_nd[lev]);
     }
 
     // **************************************************************************************

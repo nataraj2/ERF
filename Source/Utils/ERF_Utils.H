@@ -442,6 +442,7 @@ thinbody_wall_dist (std::unique_ptr<amrex::MultiFab>& wdist,
                     std::unique_ptr<amrex::MultiFab>& z_phys_cc);
 
 
-void WeatherDataInterpolation(const amrex::Real time);
+void WeatherDataInterpolation(const amrex::Real time,
+			      const std::unique_ptr<amrex::MultiFab>& z_phys_nd);
 
 #endif

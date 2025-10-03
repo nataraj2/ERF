@@ -67,7 +67,10 @@ public:
               flux_type = FluxCalcType::MOENG;
           } else if (flux_string == "custom") {
               flux_type = FluxCalcType::CUSTOM;
-          } else {
+          } else if (flux_string == "custom_hindcast") {
+              flux_type = FluxCalcType::CUSTOM_HINDCAST;
+          }
+            else {
               amrex::Abort("Undefined MOST flux type!");
           }
       }
@@ -389,6 +392,7 @@ public:
                  const amrex::Real& time,
                  const amrex::MultiFab& cons_in,
                  const std::unique_ptr<amrex::MultiFab>& z_phys_nd,
+                 const amrex::Vector<amrex::MultiFab>* surface_state_at_lev,
                  int max_iters = 100);
 
   template <typename FluxIter>
@@ -520,7 +524,8 @@ public:
     MOENG = 0, ///< Moeng functional form
     DONELAN,   ///< Donelan functional form
     CUSTOM,    ///< Custom constant flux functional form
-    ROTATE     ///< Terrain rotation flux functional form
+    ROTATE,     ///< Terrain rotation flux functional form
+    CUSTOM_HINDCAST
   };
 
   enum struct ThetaCalcType {

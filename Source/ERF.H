@@ -155,6 +155,12 @@ public:
     amrex::Vector<amrex::Vector<amrex::MultiFab>> forecast_state_1,
                                                   forecast_state_2,
                                                   forecast_state_interp;
+
+    amrex::Vector<amrex::Vector<amrex::MultiFab>> surface_state_1,
+                                                  surface_state_2,
+                                                  surface_state_interp;
+
+
     std::string MakeVTKFilename(int nstep);
     void WriteVTKPolyline(const std::string& filename,
                           amrex::Vector<std::array<amrex::Real, 2>>& points_xy);
@@ -444,6 +450,8 @@ public:
 
     void init_thin_body (int lev, const amrex::BoxArray& ba, const amrex::DistributionMapping& dm);
 
+    // Functions for weather data interpolation for hindcast simulations
+
     void CreateWeatherDataGeomBoxArrayDistMap(const std::string& filename,
                                               amrex::Geometry& geom_weather,
                                               amrex::BoxArray& nba,
@@ -456,12 +464,24 @@ public:
                                  amrex::Vector<amrex::MultiFab>& weather_forecast_data);
 
     void InterpWeatherDataOntoMesh(const amrex::Geometry& geom_weather,
+		    		   const std::unique_ptr<amrex::MultiFab>& z_phys_nd, 
                                    amrex::MultiFab& weather_forecast_interp,
                                    amrex::Vector<amrex::Vector<amrex::MultiFab>>& forecast_state);
 
     void CreateForecastStateMultiFabs(amrex::Vector<amrex::Vector<amrex::MultiFab>>& forecast_state);
 
-    void WeatherDataInterpolation(const amrex::Real time);
+    void WeatherDataInterpolation(const amrex::Real time, 
+		    		  const std::unique_ptr<amrex::MultiFab>& z_phys_nd);
+
+    // Functions for surface data interpolation for hindcast simulations
+
+    void InterpSurfaceDataOntoMesh(const int lev,
+                                   const std::string& filename,
+                                   amrex::Vector<amrex::Vector<amrex::MultiFab>>& surface_state);
+
+    void CreateSurfaceStateMultiFabs(amrex::Vector<amrex::Vector<amrex::MultiFab>>& surface_state);
+
+    void SurfaceDataInterpolation(const amrex::Real time);
 
 #ifdef ERF_USE_MULTIBLOCK
     // constructor used when ERF is created by a multiblock driver

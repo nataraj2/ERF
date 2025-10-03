@@ -589,6 +589,14 @@ struct SolverChoice {
             }
         }
 
+        pp.query("hindcast_surface_fluxes", hindcast_surface_fluxes);
+        if(hindcast_surface_fluxes) {
+            pp.query("hindcast_surface_data_dir", hindcast_surface_data_dir);
+            if(hindcast_surface_data_dir.empty()) {
+                amrex::Abort("ERROR: Missing input parameter 'erf.hindcast_boundary_data_dir' for surface fluxes for hindcast simulations");
+            }
+        }
+
         check_params(max_level);
     }
 
@@ -954,5 +962,7 @@ struct SolverChoice {
     amrex::Real hindcast_lateral_sponge_strength = -1.0, hindcast_lateral_sponge_length = -1.0;
     amrex::Real hindcast_zhi_sponge_strength = -1.0, hindcast_zhi_sponge_length = -1.0;
     bool hindcast_zhi_sponge_damping = false;
+    std::string hindcast_surface_data_dir;
+    bool hindcast_surface_fluxes = false;
 };
 #endif

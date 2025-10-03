@@ -14,7 +14,6 @@ SurfaceLayer::update_fluxes (const int& lev,
                              const Real& time,
                              const MultiFab& cons_in,
                              const std::unique_ptr<MultiFab>& z_phys_nd,
-                             const Vector<MultiFab>* surface_state_at_lev,
                              int max_iters)
 {
     // Update with SST/TSK data if we have a valid pointer
@@ -178,25 +177,149 @@ SurfaceLayer::update_fluxes (const int& lev,
             q_star[lev]->setVal(custom_qstar);
         }
     }
+    
+    if(flux_type == FluxCalcType::CUSTOM_HINDCAST){
 
-    if (flux_type == FluxCalcType::CUSTOM_HINDCAST) {
+       std::string filename;
+        // Open the binary file in input mode
+        std::ifstream infile("ERF_Surface_2021_08_20_00_00.bin", std::ios::binary);
+        if (!infile) {
+            std::cerr << "Error: Could not open file " << filename << std::endl;
+        }
+        Vector<Real> xvec_h, yvec_h, zvec_h;
+        Vector<Real> sst_h, q_star_h, t_star_h, u_star_h, ls_mask_h;
+
+
+        int nx, ny, nz, ndata;
+        float value;
+
+
+        // Read the four integers
+        infile.read(reinterpret_cast<char*>(&nx), sizeof(int));
+        infile.read(reinterpret_cast<char*>(&ny), sizeof(int));
+        infile.read(reinterpret_cast<char*>(&nz), sizeof(int));
+        infile.read(reinterpret_cast<char*>(&ndata), sizeof(int));
+
+        amrex::Gpu::DeviceVector<Real> xvec_d(nx), yvec_d(ny), zvec_d(nz);
+        for(int i=0; i<nx; i++) {
+            infile.read(reinterpret_cast<char*>(&value), sizeof(float));
+            xvec_h.emplace_back(value);
+        }
+        amrex::Gpu::copy(amrex::Gpu::hostToDevice, xvec_h.begin(), xvec_h.end(), xvec_d.begin());
+
+        for(int j=0; j<ny; j++) {
+            infile.read(reinterpret_cast<char*>(&value), sizeof(float));
+            yvec_h.emplace_back(value);
+        }
+        amrex::Gpu::copy(amrex::Gpu::hostToDevice, yvec_h.begin(), yvec_h.end(), yvec_d.begin());
+
+        for(int k=0; k<nz; k++) {
+            infile.read(reinterpret_cast<char*>(&value), sizeof(float));
+            zvec_h.emplace_back(value);
+        }
+        amrex::Gpu::copy(amrex::Gpu::hostToDevice, zvec_h.begin(), zvec_h.end(), zvec_d.begin());
+
+         // Vector to store the data
+
+    Vector<Real>* data_h = nullptr; // Declare pointer outside the loop
+
+    Real* xvec_d_ptr = xvec_d.data();
+    Real* yvec_d_ptr = yvec_d.data();
+    Real* zvec_d_ptr = zvec_d.data();
+
+    Real dxvec = (xvec_h[nx-1]-xvec_h[0])/(nx-1);
+    Real dyvec = (yvec_h[ny-1]-yvec_h[0])/(ny-1);
+
+    // Read the file
+    for(int idx=0; idx<ndata; idx++){
+        if(idx == 0){
+            data_h = &sst_h;
+        } else if (idx==1) {
+            data_h = &q_star_h;
+        } else if (idx==2) {
+            data_h = &t_star_h;
+        } else if (idx==3) {
+            data_h = &u_star_h;
+        } else if(idx==4) {
+            data_h = &ls_mask_h;
+        }
+        for(int k=0; k<nz; k++) {
+            for(int j=0; j<ny; j++) {
+                for(int i=0; i<nx; i++) {
+                    infile.read(reinterpret_cast<char*>(&value), sizeof(float));
+                    //if(idx == 3) {
+                        //printf("theta is %0.15g, %0.15g, %0.15g %0.15g\n", xvec_h[i], yvec_h[j], zvec_h[k], value);
+                    //}
+                    data_h->emplace_back(value);
+                }
+            }
+        }
+    }
+
+    infile.close(); 
+    
+    amrex::Gpu::DeviceVector<Real> sst_d(nx*ny*nz), q_star_d(nx*ny*nz), t_star_d(nx*ny*nz), u_star_d(nx*ny*nz), ls_mask_d(nx*ny*nz);
+
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, sst_h.begin(), sst_h.end(), sst_d.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, q_star_h.begin(), q_star_h.end(), q_star_d.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, t_star_h.begin(), t_star_h.end(), t_star_d.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, u_star_h.begin(), u_star_h.end(), u_star_d.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, ls_mask_h.begin(), ls_mask_h.end(), ls_mask_d.begin());
+
+    Real* sst_d_ptr   = sst_d.data();
+    Real* q_star_d_ptr  = q_star_d.data();
+    Real* t_star_d_ptr  = t_star_d.data();
+    Real* u_star_d_ptr  = u_star_d.data();
+    Real* ls_mask_d_ptr = ls_mask_d.data();
+
+    const auto prob_lo  = m_geom[lev].ProbLo();
+    const auto dx       = m_geom[lev].CellSize();
+
         for (amrex::MFIter mfi(*u_star[lev]); mfi.isValid(); ++mfi) {
             const Box gtbx = mfi.growntilebox();
             auto u_star_arr = u_star[lev]->array(mfi);
             auto t_star_arr = t_star[lev]->array(mfi);
             auto q_star_arr = q_star[lev]->array(mfi);
-            const Array4<const Real>& surf_arr = (*surface_state_at_lev)[0].array(mfi);
 
             ParallelFor(gtbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                u_star_arr(i, j, 0) = surf_arr(i,j,0);
-                t_star_arr(i, j, 0) = surf_arr(i,j,1);
-                q_star_arr(i, j, 0) = surf_arr(i,j,2);
-                //printf("ustar is %0.15g %0.15g %0.15g\n", u_star_arr(i, j, 0), t_star_arr(i,j,0), q_star_arr(i,j,0));
+
+                const Real x        = prob_lo[0] + (i + 0.5) * dx[0];
+                const Real y        = prob_lo[1] + (j + 0.5) * dx[1];
+
+                if(j<0) {
+                    //printf("j is negative. value of y is %d %0.15g\n", j, y);
+                }
+
+
+                // First interpolate where the weather data is available from
+                Real tmp_u_star, tmp_q_star, tmp_t_star;
+                bilinear_interpolation_2d(xvec_d_ptr, yvec_d_ptr,
+                                       dxvec, dyvec,
+                                       nx, ny,
+                                          x, y,
+                                          u_star_d_ptr, tmp_u_star);
+
+                bilinear_interpolation_2d(xvec_d_ptr, yvec_d_ptr,
+                                       dxvec, dyvec,
+                                       nx, ny,
+                                          x, y,
+                                          q_star_d_ptr, tmp_q_star);
+
+                bilinear_interpolation_2d(xvec_d_ptr, yvec_d_ptr,
+                                       dxvec, dyvec,
+                                       nx, ny,
+                                          x, y,
+                                          t_star_d_ptr, tmp_t_star);
+
+
+
+                u_star_arr(i, j, 0) = tmp_u_star;
+                t_star_arr(i, j, 0) = -tmp_t_star/(1.226*1004.5*3600.0);
+                q_star_arr(i, j, 0) = -tmp_q_star/(1.226*2260000.0*3600.0);
+                //printf("ustar is (%0.15g,%0.15g) is %0.15g %0.15g %0.15g\n", x, y, tmp_u_star, t_star_arr(i,j,0), q_star_arr(i,j,0));
             });
         }
     }
-
-
 }
 
 /**
