@@ -206,7 +206,7 @@ Problem::init_custom_pert (
         const Real x        = prob_lo[0] + (i + 0.5) * dx[0];
         const Real y        = prob_lo[1] + (j + 0.5) * dx[1];
         //const Real z        = prob_lo[2] + (k + 0.5) * dx[2];
-    const Real z = z_nd(i,j,k);
+        const Real z = z_nd(i,j,k);
 
         // First interpolate where the weather data is available from
         Real tmp_rho, tmp_theta, tmp_qv, tmp_qc, tmp_qr;
