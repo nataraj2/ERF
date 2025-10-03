@@ -100,7 +100,7 @@ Problem::init_custom_pert (
     Array4<Real      > const& z_vel_pert,
     Array4<Real      > const& /*r_hse*/,
     Array4<Real      > const& /*p_hse*/,
-    Array4<Real const> const& /*z_nd*/,
+    Array4<Real const> const& z_nd,
     Array4<Real const> const& /*z_cc*/,
     GeometryData const& geomdata,
     Array4<Real const> const& /*mf_m*/,
@@ -205,7 +205,8 @@ Problem::init_custom_pert (
         const auto dx       = geomdata.CellSize();
         const Real x        = prob_lo[0] + (i + 0.5) * dx[0];
         const Real y        = prob_lo[1] + (j + 0.5) * dx[1];
-        const Real z        = prob_lo[2] + (k + 0.5) * dx[2];
+        //const Real z        = prob_lo[2] + (k + 0.5) * dx[2];
+    const Real z = z_nd(i,j,k);
 
         // First interpolate where the weather data is available from
         Real tmp_rho, tmp_theta, tmp_qv, tmp_qc, tmp_qr;
@@ -258,7 +259,8 @@ Problem::init_custom_pert (
     const auto dx       = geomdata.CellSize();
     const Real x        = prob_lo[0] + i * dx[0];
     const Real y        = prob_lo[1] + (j + 0.5) * dx[1];
-    const Real z        = prob_lo[2] + (k + 0.5) * dx[2];
+    //const Real z        = prob_lo[2] + (k + 0.5) * dx[2];
+    const Real z = z_nd(i,j,k);
 
     Real tmp_uvel;
     bilinear_interpolation(xvec_d_ptr, yvec_d_ptr, zvec_d_ptr,
@@ -275,7 +277,8 @@ Problem::init_custom_pert (
     const auto dx       = geomdata.CellSize();
     const Real x        = prob_lo[0] + (i+0.5) * dx[0];
     const Real y        = prob_lo[1] + j * dx[1];
-    const Real z        = prob_lo[2] + (k + 0.5) * dx[2];
+    //const Real z        = prob_lo[2] + (k + 0.5) * dx[2];
+    const Real z = z_nd(i,j,k);
 
     Real tmp_vvel;
     bilinear_interpolation(xvec_d_ptr, yvec_d_ptr, zvec_d_ptr,
@@ -293,7 +296,8 @@ Problem::init_custom_pert (
     const auto dx       = geomdata.CellSize();
     const Real x        = prob_lo[0] + (i + 0.5) * dx[0];
     const Real y        = prob_lo[1] + (j + 0.5) * dx[1];
-    const Real z        = prob_lo[2] + k * dx[2];
+    //const Real z        = prob_lo[2] + k * dx[2];
+    const Real z = z_nd(i,j,k);
 
     Real tmp_wvel;
     bilinear_interpolation(xvec_d_ptr, yvec_d_ptr, zvec_d_ptr,
