@@ -26,7 +26,7 @@ SurfaceLayer::update_fluxes (const int& lev,
     }
 
     // Update qsurf with qsat over sea
-    if (use_moisture && (moist_type == MoistCalcType::SURFACE_MOISTURE)) {
+    if (use_moisture) {
         fill_qsurf_with_qsat(lev, cons_in, z_phys_nd);
     }
 
@@ -39,9 +39,6 @@ SurfaceLayer::update_fluxes (const int& lev,
     // Compute plane averages for all vars (regardless of flux type)
     m_ma.compute_averages(lev);
 
-    // Do we have a constant flux for moisture?
-    bool cons_qflux = ( (moist_type == MoistCalcType::MOISTURE_FLUX) ||
-                        (moist_type == MoistCalcType::ADIABATIC) );
 
     // ***************************************************************
     // Iterate the fluxes if moeng type
@@ -51,6 +48,9 @@ SurfaceLayer::update_fluxes (const int& lev,
     if (flux_type == FluxCalcType::MOENG ||
         flux_type == FluxCalcType::ROTATE) {
         bool is_land = true;
+        // Do we have a constant flux for moisture over land?
+        bool cons_qflux = ( (moist_type == MoistCalcType::MOISTURE_FLUX) ||
+                            (moist_type == MoistCalcType::ADIABATIC) );
         if (theta_type == ThetaCalcType::HEAT_FLUX) {
             if (rough_type_land == RoughCalcType::CONSTANT) {
                 surface_flux most_flux(m_ma.get_zref(), surf_temp_flux, surf_moist_flux, cons_qflux);
@@ -86,6 +86,9 @@ SurfaceLayer::update_fluxes (const int& lev,
     if (flux_type == FluxCalcType::MOENG ||
         flux_type == FluxCalcType::ROTATE) {
         bool is_land = false;
+        // NOTE: Do not allow default to adiabatic over sea (we have Qvs at surface)
+        // Do we have a constant flux for moisture over sea?
+        bool cons_qflux = (moist_type == MoistCalcType::MOISTURE_FLUX);
         if (theta_type == ThetaCalcType::HEAT_FLUX) {
             if (rough_type_sea == RoughCalcType::CHARNOCK) {
                 surface_flux_charnock most_flux(m_ma.get_zref(),
@@ -234,11 +237,14 @@ SurfaceLayer::compute_fluxes (const int& lev,
                 (!is_land && lmask_arr(i,j,k) == 0))
             {
                 most_flux.iterate_flux(i, j, k, max_iters,
-                                       z0_arr, umm_arr, tm_arr, tvm_arr, qvm_arr,
-                                       u_star_arr, w_star_arr,           // to be updated
-                                       t_star_arr, q_star_arr,           // to be updated
-                                       t_surf_arr, q_surf_arr, olen_arr, // to be updated
-                                       pblh_arr, Hwave_arr, Lwave_arr, eta_arr);
+                                       z0_arr,                              // updated if(!is_land)
+                                       umm_arr, tm_arr, tvm_arr, qvm_arr,
+                                       u_star_arr,                          // updated
+                                       w_star_arr,                          // updated if(m_include_wstar)
+                                       t_star_arr, q_star_arr,              // updated
+                                       t_surf_arr, q_surf_arr, olen_arr,    // updated
+                                       pblh_arr,                            // updated if(m_include_wstar)
+                                       Hwave_arr, Lwave_arr, eta_arr);
             }
         });
     }
@@ -282,12 +288,20 @@ SurfaceLayer::impose_SurfaceLayer_bcs (const int& lev,
                                  xheat_flux, yheat_flux, zheat_flux,
                                  xqv_flux, yqv_flux, zqv_flux,
                                  z_phys, flux_comp);
-    } else {
+    } else if (flux_type == FluxCalcType::BULK_COEFF) {
+        bulk_coeff_flux flux_comp(m_Cd, m_Ch, m_Cq);
+        compute_SurfaceLayer_bcs(lev, mfs, Tau_lev,
+                                 xheat_flux, yheat_flux, zheat_flux,
+                                 xqv_flux, yqv_flux, zqv_flux,
+                                 z_phys, flux_comp);
+    } else if (flux_type == FluxCalcType::CUSTOM) {
         custom_flux flux_comp(specified_rho_surf);
         compute_SurfaceLayer_bcs(lev, mfs, Tau_lev,
                                  xheat_flux, yheat_flux, zheat_flux,
                                  xqv_flux, yqv_flux, zqv_flux,
                                  z_phys, flux_comp);
+    } else {
+        amrex::Abort("Unknown surface layer flux calculation type");
     }
 }
 
@@ -539,6 +553,7 @@ SurfaceLayer::fill_tsurf_with_sst_and_tsk (const int& lev,
     Real lst = default_land_surf_temp;
 
     bool use_tsk = (m_tsk_lev[lev][0]);
+    bool ignore_sst = m_ignore_sst;
 
     // Populate t_surf
     for (MFIter mfi(*t_surf[lev]); mfi.isValid(); ++mfi)
@@ -558,7 +573,7 @@ SurfaceLayer::fill_tsurf_with_sst_and_tsk (const int& lev,
             ParallelFor(gtbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
             {
                 int is_land = (lmask_arr) ? lmask_arr(i,j,k) : 1;
-                if (!is_land) {
+                if (!is_land && !ignore_sst) {
                     t_surf_arr(i,j,k) = oma   * sst_lo_arr(i,j,k)
                                       + alpha * sst_hi_arr(i,j,k);
                 } else {
@@ -681,15 +696,52 @@ SurfaceLayer::compute_pblh (const int& lev,
 }
 
 void
+SurfaceLayer::init_tke_from_ustar (const int& lev,
+                                   MultiFab& cons,
+                                   const std::unique_ptr<MultiFab>& z_phys_nd,
+                                   const Real tkefac,
+                                   const Real zscale)
+{
+    Print() << "Initializing TKE from surface layer ustar on level " << lev << std::endl;
+
+    constexpr Real small = 0.01;
+
+    for (MFIter mfi(cons); mfi.isValid(); ++mfi)
+    {
+        Box gtbx = mfi.tilebox();
+
+        auto const& u_star_arr = u_star[lev]->const_array(mfi);
+        auto const& z_phys_arr = z_phys_nd->const_array(mfi);
+
+        auto const& cons_arr   = cons.array(mfi);
+
+        ParallelFor(gtbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+        {
+            Real rho = cons_arr(i, j, k, Rho_comp);
+            Real ust = u_star_arr(i, j, 0);
+            Real tke0 = tkefac * ust * ust; // surface value
+            Real zagl = Compute_Zrel_AtCellCenter(i, j, k, z_phys_arr);
+
+            // linearly tapering profile --  following WRF, approximate top of
+            // PBL as ustar * zscale
+            cons_arr(i, j, k, RhoKE_comp) = rho * tke0 * std::max(
+                (ust * zscale - zagl) / (std::max(ust, small) * zscale),
+                small);
+        });
+    }
+}
+
+
+void
 SurfaceLayer::read_custom_roughness (const int& lev,
                                      const std::string& fname)
 {
-    // Read the file if we are on the coarsest level
-    if (lev==0) {
+    // Read the file if we have it
+    if (!fname.empty()) {
         // Only the ioproc reads the file
         Gpu::HostVector<Real> m_x,m_y,m_z0;
         if (ParallelDescriptor::IOProcessor()) {
-            Print()<<"Reading MOST roughness file: "<< fname << std::endl;
+            Print()<<"Reading MOST roughness file at level " << lev << " : " << fname << std::endl;
             std::ifstream file(fname);
             Real value1,value2,value3;
             while(file>>value1>>value2>>value3){
@@ -698,17 +750,26 @@ SurfaceLayer::read_custom_roughness (const int& lev,
                 m_z0.push_back(value3);
             }
             file.close();
+
+            AMREX_ALWAYS_ASSERT(m_x.size() == m_y.size());
+            AMREX_ALWAYS_ASSERT(m_x.size() == m_z0.size());
         }
 
         // Broadcast the whole domain to every rank
         int ioproc = ParallelDescriptor::IOProcessorNumber();
-        ParallelDescriptor::Barrier();
-        ParallelDescriptor::Bcast(m_x.data() , m_x.size() , ioproc);
-        ParallelDescriptor::Bcast(m_y.data() , m_x.size() , ioproc);
-        ParallelDescriptor::Bcast(m_z0.data(), m_z0.size(), ioproc);
+        int nnode = m_x.size();
+        ParallelDescriptor::Bcast(&nnode, 1, ioproc);
+
+        if (!ParallelDescriptor::IOProcessor()) {
+            m_x.resize(nnode);
+            m_y.resize(nnode);
+            m_z0.resize(nnode);
+        }
+        ParallelDescriptor::Bcast(m_x.data() , nnode, ioproc);
+        ParallelDescriptor::Bcast(m_y.data() , nnode, ioproc);
+        ParallelDescriptor::Bcast(m_z0.data(), nnode, ioproc);
 
         // Copy data to the GPU
-        int nnode = m_x.size();
         Gpu::DeviceVector<Real> d_x(nnode),d_y(nnode),d_z0(nnode);
         Gpu::copy(Gpu::hostToDevice, m_x.begin(), m_x.end(), d_x.begin());
         Gpu::copy(Gpu::hostToDevice, m_y.begin(), m_y.end(), d_y.begin());
@@ -764,6 +825,10 @@ SurfaceLayer::read_custom_roughness (const int& lev,
             });
         } // mfi
     } else {
+        AMREX_ALWAYS_ASSERT(lev > 0);
+
+        Print()<<"Interpolating MOST roughness at level " << lev << std::endl;
+
         // Create a BC mapper that uses FOEXTRAP at domain bndry
         Vector<int> bc_lo(3,ERFBCType::foextrap);
         Vector<int> bc_hi(3,ERFBCType::foextrap);

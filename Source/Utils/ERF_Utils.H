@@ -83,6 +83,15 @@ ConvertForProjection (const amrex::MultiFab& den_div, const amrex::MultiFab& den
                       const amrex::Box& domain, const amrex::Vector<amrex::BCRec>& domain_bcs_type_h);
 
 /*
+ * \brief Enforces solvablity by scaling outflow to match with inflow.
+ *
+ */
+void enforceInOutSolvability (int lev,
+                              amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>& vels_vec,
+                              amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>& area_vec,
+                              const amrex::Geometry& geom);
+
+/*
  * Compute boxes for looping over interior/exterior ghost cells
  * for use by fillpatch, erf_slow_rhs_pre, and erf_slow_rhs_post
  */
@@ -447,5 +456,18 @@ thinbody_wall_dist (std::unique_ptr<amrex::MultiFab>& wdist,
 
 
 void WeatherDataInterpolation(const amrex::Real time);
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+amrex::Real
+quad_interp_1d(amrex::Real z,
+               amrex::Real z0, amrex::Real p0,
+               amrex::Real z1, amrex::Real p1,
+               amrex::Real z2, amrex::Real p2)
+{
+    return p0 * ( (z - z1) * (z - z2) ) / ( (z0 - z1) * (z0 - z2) )
+         + p1 * ( (z - z0) * (z - z2) ) / ( (z1 - z0) * (z1 - z2) )
+         + p2 * ( (z - z0) * (z - z1) ) / ( (z2 - z0) * (z2 - z1) );
+}
 
 #endif

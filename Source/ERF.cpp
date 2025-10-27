@@ -22,6 +22,7 @@
 #include "ERF_ReadFromWRFInput.H"
 #include "ERF_ReadFromWRFBdy.H"
 #endif
+#include "ERF_HurricaneDiagnostics.H"
 
 using namespace amrex;
 
@@ -208,8 +209,8 @@ ERF::ERF_shared ()
 
     const std::string& pv3d_1 = "plot_vars_1"  ; setPlotVariables(pv3d_1,plot3d_var_names_1);
     const std::string& pv3d_2 = "plot_vars_2"  ; setPlotVariables(pv3d_2,plot3d_var_names_2);
-    const std::string& pv2d_1 = "plot2d_vars_1"; setPlotVariables(pv2d_1,plot2d_var_names_1);
-    const std::string& pv2d_2 = "plot2d_vars_2"; setPlotVariables(pv2d_2,plot2d_var_names_2);
+    const std::string& pv2d_1 = "plot2d_vars_1"; setPlotVariables2D(pv2d_1,plot2d_var_names_1);
+    const std::string& pv2d_2 = "plot2d_vars_2"; setPlotVariables2D(pv2d_2,plot2d_var_names_2);
 
     // This is only used when we have mesh_type == MeshType::StretchedDz
     stretched_dz_h.resize(nlevs_max);
@@ -302,6 +303,12 @@ ERF::ERF_shared ()
     // We resize this regardless in order to pass it without error
     pp_inc.resize(nlevs_max);
 
+    // Used in the fast substepping only
+    lagged_delta_rt.resize(nlevs_max);
+    avg_xmom.resize(nlevs_max);
+    avg_ymom.resize(nlevs_max);
+    avg_zmom.resize(nlevs_max);
+
     rU_new.resize(nlevs_max);
     rV_new.resize(nlevs_max);
     rW_new.resize(nlevs_max);
@@ -351,6 +358,11 @@ ERF::ERF_shared ()
     sst_lev.resize(nlevs_max);
     tsk_lev.resize(nlevs_max);
     lmask_lev.resize(nlevs_max);
+
+    // Land and soil grid type and urban fractions
+    land_type_lev.resize(nlevs_max);
+    soil_type_lev.resize(nlevs_max);
+    urb_frac_lev.resize(nlevs_max);
 
     // Metric terms
     z_phys_nd.resize(nlevs_max);
@@ -471,11 +483,8 @@ ERF::ERF_shared ()
         ParmParse pp("eb2");
         pp.queryAdd("geometry", geometry);
 
-        bool build_coarse_level_by_coarsening(false);
-        // Note this just needs to be an integer > number of V-cycles one might use
-        int max_coarsening_level = ( solverChoice.terrain_type == TerrainType::EB &&
-                                    (solverChoice.project_initial_velocity ||
-                                     solverChoice.anelastic[0] == 1) ) ? 100 : 0;
+        int ngrow_for_eb = 4;  // This is the default in amrex but we need to explicitly pass it here since
+                               // we want to also pass the build_coarse_level_by_coarsening argument
         if (geometry == "terrain") {
             Box terrain_bx(surroundingNodes(geom[max_level].Domain())); terrain_bx.grow(3);
             FArrayBox terrain_fab(makeSlab(terrain_bx,2,0),1);
@@ -483,7 +492,7 @@ ERF::ERF_shared ()
             prob->init_terrain_surface(geom[max_level], terrain_fab, dummy_time);
             TerrainIF implicit_fun(terrain_fab, geom[max_level], stretched_dz_d[max_level]);
             auto gshop = EB2::makeShop(implicit_fun);
-            amrex::EB2::Build(gshop, geom[max_level], max_level, max_coarsening_level, build_coarse_level_by_coarsening);
+            amrex::EB2::Build(gshop, this->Geom(), ngrow_for_eb);
         } else if (geometry == "box") {
             RealArray box_lo{0.0, 0.0, 0.0};
             RealArray box_hi{0.0, 0.0, 0.0};
@@ -491,7 +500,7 @@ ERF::ERF_shared ()
             pp.query("box_hi", box_hi);
             EB2::BoxIF implicit_fun(box_lo, box_hi, false);
             auto gshop = EB2::makeShop(implicit_fun);
-            amrex::EB2::Build(gshop, geom[max_level], max_level, max_coarsening_level, build_coarse_level_by_coarsening);
+            amrex::EB2::Build(gshop, this->Geom(), ngrow_for_eb);
         } else if (geometry == "sphere") {
             auto ProbLoArr = geom[max_level].ProbLoArray();
             auto ProbHiArr = geom[max_level].ProbHiArray();
@@ -500,7 +509,7 @@ ERF::ERF_shared ()
             RealArray sphere_center = {xcen, ycen, 0.0};
             EB2::SphereIF implicit_fun(0.5, sphere_center, false);
             auto gshop = EB2::makeShop(implicit_fun);
-            amrex::EB2::Build(gshop, geom[max_level], max_level, max_coarsening_level, build_coarse_level_by_coarsening);
+            amrex::EB2::Build(gshop, this->Geom(), ngrow_for_eb);
         }
     }
 }
@@ -543,9 +552,8 @@ ERF::Evolve ()
 
         auto dEvolveTime0 = amrex::second();
 
-        int lev = 0;
         int iteration = 1;
-        timeStep(lev, cur_time, iteration);
+        timeStep(0, cur_time, iteration);
 
         cur_time  += dt[0];
 
@@ -564,11 +572,13 @@ ERF::Evolve ()
         if (writeNow(cur_time, step+1, m_plot3d_int_1, m_plot3d_per_1, dt[0], last_plot3d_file_time_1)) {
             last_plot3d_file_step_1 = step+1;
             Write3DPlotFile(1,plotfile3d_type_1,plot3d_var_names_1);
+            for (int lev = 0; lev <= finest_level; ++lev) {lsm.Plot(lev, step+1);}
             if (m_plot3d_per_1 > 0.) {last_plot3d_file_time_1 += m_plot3d_per_1;}
         }
         if (writeNow(cur_time, step+1, m_plot3d_int_2, m_plot3d_per_2, dt[0], last_plot3d_file_time_2)) {
             last_plot3d_file_step_2 = step+1;
             Write3DPlotFile(2,plotfile3d_type_2,plot3d_var_names_2);
+            for (int lev = 0; lev <= finest_level; ++lev) {lsm.Plot(lev, step+1);}
             if (m_plot3d_per_2 > 0.) {last_plot3d_file_time_2 += m_plot3d_per_2;}
         }
 
@@ -825,6 +835,45 @@ ERF::post_timestep (int nstep, Real time, Real dt_lev0)
             }
         }
     }
+
+    if(solverChoice.io_hurricane_eye_tracker and (nstep == 0 or (nstep+1)%m_plot3d_int_1 == 0)) {
+        int levc=finest_level;
+
+        HurricaneEyeTracker(geom[levc],
+                            vars_new[levc],
+                            solverChoice.moisture_type,
+                            solverChoice.hindcast_lateral_forcing? &forecast_state_interp[levc] : nullptr,
+                            solverChoice.hurricane_eye_latitude,
+                            solverChoice.hurricane_eye_longitude,
+                            hurricane_eye_track_xy,
+                            hurricane_eye_track_latlon,
+                            hurricane_tracker_circle);
+
+        MultiFab& U_new = vars_new[levc][Vars::xvel];
+        MultiFab& V_new = vars_new[levc][Vars::yvel];
+        MultiFab& W_new = vars_new[levc][Vars::zvel];
+
+        MultiFab mf_cc_vel(grids[levc], dmap[levc], AMREX_SPACEDIM, IntVect(0,0,0));
+        average_face_to_cellcenter(mf_cc_vel,0,{AMREX_D_DECL(&U_new,&V_new,&W_new)},0);
+
+        HurricaneMaxVelTracker(geom[levc],
+                               mf_cc_vel,
+                               t_new[0],
+                               hurricane_eye_track_xy,
+                               hurricane_maxvel_vs_time);
+
+        std::string filename_tracker = MakeVTKFilename_TrackerCircle(nstep);
+        std::string filename_xy = MakeVTKFilename_EyeTracker_xy(nstep);
+        std::string filename_latlon = MakeFilename_EyeTracker_latlon(nstep);
+        std::string filename_maxvel = MakeFilename_EyeTracker_maxvel(nstep);
+        if (ParallelDescriptor::IOProcessor()) {
+            WriteVTKPolyline(filename_tracker, hurricane_tracker_circle);
+            WriteVTKPolyline(filename_xy, hurricane_eye_track_xy);
+            WriteLinePlot(filename_latlon, hurricane_eye_track_latlon);
+            WriteLinePlot(filename_maxvel, hurricane_maxvel_vs_time);
+        }
+    }
+
 } // post_timestep
 
 // This is called from main.cpp and handles all initialization, whether from start or restart
@@ -983,6 +1032,10 @@ ERF::InitData_post ()
         //
         bool use_moist = (solverChoice.moisture_type != MoistureType::None);
         if (solverChoice.use_real_bcs) {
+
+            if ( geom[0].isPeriodic(0) || geom[0].isPeriodic(1) ) {
+                 amrex::Error("Cannot set periodic lateral boundary conditions when reading in real boundary values");
+            }
 
             bdy_time_interval = read_times_from_wrfbdy(nc_bdy_file,
                                                        bdy_data_xlo,bdy_data_xhi,bdy_data_ylo,bdy_data_yhi,
@@ -1441,17 +1494,19 @@ ERF::InitData_post ()
         }
 
         //
-        // This constructor will make the ABLMost object but not allocate the arrays at each level.
+        // This constructor will make the SurfaceLayer object but not allocate the arrays at each level.
         //
         m_SurfaceLayer = std::make_unique<SurfaceLayer>(geom, rotate, pp_prefix, Qv_prim,
-                                                        z_phys_nd, solverChoice.terrain_type,
+                                                        z_phys_nd,
+                                                        solverChoice.mesh_type,
+                                                        solverChoice.terrain_type,
                                                         start_time, stop_time
 #ifdef ERF_USE_NETCDF
                                                         , bdy_time_interval
 #endif
                                                         );
         // This call will allocate the arrays at each level. If we regrid later, either changing
-        // the number of level sor just the grids at each existing level, we will call an update routine
+        // the number of levels or just the grids at each existing level, we will call an update routine
         // to redefine the internal arrays in m_SurfaceLayer.
         int nlevs = geom.size();
         for (int lev = 0; lev < nlevs; lev++)
@@ -1505,6 +1560,19 @@ ERF::InitData_post ()
                 m_SurfaceLayer->update_pblh(lev, vars_new, z_phys_cc[lev].get(),
                                             solverChoice.moisture_indices);
                 m_SurfaceLayer->update_fluxes(lev, time, vars_new[lev][Vars::cons], z_phys_nd[lev]);
+
+                // Initialize tke(x,y,z) as a function of u*(x,y)
+                if (solverChoice.turbChoice[lev].init_tke_from_ustar) {
+                    Real qkefac = 1.0;
+                    if (solverChoice.turbChoice[lev].pbl_type == PBLType::MYNN25 ||
+                        solverChoice.turbChoice[lev].pbl_type == PBLType::MYNNEDMF)
+                    {
+                        // https://github.com/NCAR/MYNN-EDMF/blob/90f36c25259ec1960b24325f5b29ac7c5adeac73/module_bl_mynnedmf.F90#L1325-L1333
+                        const Real B1 = solverChoice.turbChoice[lev].pbl_mynn.B1;
+                        qkefac = 1.5 * std::pow(B1, 2.0/3.0);
+                    }
+                    m_SurfaceLayer->init_tke_from_ustar(lev, vars_new[lev][Vars::cons], z_phys_nd[lev], qkefac);
+                }
             }
         }
     } // end if (phys_bc_type[Orientation(Direction::z,Orientation::low)] == ERF_BC::surface_layer)
@@ -1941,6 +2009,11 @@ ERF::init_only (int lev, Real time)
         solverChoice.pert_type == PerturbationType::CPM) {
         turbPert_update(lev, 0.);
         turbPert_amplitude(lev);
+    }
+
+    // Set initial velocity field for immersed cells to be close to 0
+    if (solverChoice.terrain_type == TerrainType::ImmersedForcing) {
+        init_immersed_forcing(lev);
     }
 }
 

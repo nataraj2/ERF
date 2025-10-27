@@ -458,6 +458,18 @@ List of Parameters
 |                            | each RK stage?       | "Explicit",    | compressible,       |
 |                            |                      | "None"         | "None" if anelastic |
 +----------------------------+----------------------+----------------+---------------------+
+| **erf.vert_implicit_fac**  | How much implicit    | Real >= 0      | 0.0, 0.0, 0.0       |
+|                            | vertical diffusion   | (explicit) and | (fully explicit)    |
+|                            | to include in each   | <= 1 (implicit)|                     |
+|                            | RK stage? Currently, |                |                     |
+|                            | only applies to      |                |                     |
+|                            | rho*theta component. |                |                     |
+|                            |                      |                |                     |
+|                            | Specify either one   |                |                     |
+|                            | (the same for all    |                |                     |
+|                            | stages) or three     |                |                     |
+|                            | values, one per stage|                |                     |
++----------------------------+----------------------+----------------+---------------------+
 | **erf.cfl**                | CFL number used to   | Real > 0 and   | 0.8                 |
 |                            | compute level 0 dt   | <= 1           |                     |
 +----------------------------+----------------------+----------------+---------------------+
@@ -984,6 +996,10 @@ List of Parameters
 |                                  | model, and if so,  | "Smagorinsky",      |              |
 |                                  | which type?        | "Deardorff"         |              |
 +----------------------------------+--------------------+---------------------+--------------+
+| **erf.rans_type**                | Using a RANS       | "None" or "kEqn"    | "None"       |
+|                                  | model, and if so,  |                     |              |
+|                                  | which type?        |                     |              |
++----------------------------------+--------------------+---------------------+--------------+
 | **erf.molec_diff_type**          | Using molecular    | "None",             | "None"       |
 |                                  | viscosity and      | "Constant", or      |              |
 |                                  | diffusivity?       | "ConstantAlpha"     |              |
@@ -994,10 +1010,9 @@ List of Parameters
 | **erf.Cs**                       | Constant           | Real                | 0.0          |
 |                                  | Smagorinsky coeff. |                     |              |
 +----------------------------------+--------------------+---------------------+--------------+
-| **erf.use_smag_stratification**  | Enable             | Boolean             | true         |
-|                                  | stratification     |                     |              |
-|                                  | effects (dry and   |                     |              |
-|                                  | moist) in          |                     |              |
+| **erf.use_moist_Ri_correction**  | Apply moist        | Boolean             | false        |
+|                                  | Richardson number  |                     |              |
+|                                  | limiter to the     |                     |              |
 |                                  | Smagorinsky model  |                     |              |
 +----------------------------------+--------------------+---------------------+--------------+
 | **erf.Ck**                       | Constant           | Real                | 0.1          |
@@ -1352,6 +1367,29 @@ Note that ``erf.add_custom_geostrophic_profile`` cannot be used in combination
 with an ``erf.abl_geo_wind_table``.
 
 
+Numerical Stability
+===================
+
+To enhance numerical stability, e.g., for operational runs, we provide some additional controls.
+
+List of Parameters
+------------------
+
++----------------------------+----------------------------------+-------------------+-------------+
+| **erf.beta_s**             | Time off-centering coefficient   | Real              | 0.1         |
++----------------------------+----------------------------------+-------------------+-------------+
+| **erf.w_damping**          | Enable vertical-velocity         | Bool              | false       |
+|                            | damping                          |                   |             |
++----------------------------+----------------------------------+-------------------+-------------+
+| **erf.w_damping_cfl**      | Critical vertical advective      | Real              | 1.0         |
+|                            | CFL for w-damping to be applied, |                   |             |
+|                            | if ``erf.w_damping`` is true     |                   |             |
++----------------------------+----------------------------------+-------------------+-------------+
+| **erf.w_damping_coeff**    | w-damping coefficient (m/s)      | Real              | 0.3         |
++----------------------------+----------------------------------+-------------------+-------------+
+
+
+
 Initialization
 ==============
 
@@ -1560,7 +1598,8 @@ methods for defining how the terrain-fitted coordinates given the topography:
 - Sullivan Terrain Following (name TBD):
     The influence of the terrain decreases with the cube of height.
 
-The user can also specify that terrain should be represented with an immersed forcing method, or
+The user can also specify that terrain should be represented with an immersed forcing method
+(with an optional wall model, see :ref:`Forcings` for more detail), or
 with an embedded boundary / cut cell representation.
 
 .. note:: The embedded boundary / cut cell representation is a work in progress and not ready for use!
