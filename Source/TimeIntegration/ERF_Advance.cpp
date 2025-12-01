@@ -136,7 +136,7 @@ ERF::Advance (int lev, Real time, Real dt_lev, int iteration, int /*ncycle*/)
     // **************************************************************************************
     if(solverChoice.init_type == InitType::HindCast and
        solverChoice.hindcast_lateral_forcing){
-       WeatherDataInterpolation(time);
+       //WeatherDataInterpolation(lev, time, z_phys_nd[lev]);
     }
 
     // **************************************************************************************

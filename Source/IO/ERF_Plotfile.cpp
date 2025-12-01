@@ -1502,15 +1502,15 @@ ERF::Write3DPlotFile (int which, PlotFileType plotfile_type, Vector<std::string>
     std::string plotfilenameV;
     std::string plotfilenameW;
     if (which == 1) {
-       plotfilename = Concatenate(plot3d_file_1, istep[0], 5);
-       plotfilenameU = Concatenate(plot3d_file_1+"U", istep[0], 5);
-       plotfilenameV = Concatenate(plot3d_file_1+"V", istep[0], 5);
-       plotfilenameW = Concatenate(plot3d_file_1+"W", istep[0], 5);
+       plotfilename = Concatenate(plot3d_file_1, istep[0], 6);
+       plotfilenameU = Concatenate(plot3d_file_1+"U", istep[0], 6);
+       plotfilenameV = Concatenate(plot3d_file_1+"V", istep[0], 6);
+       plotfilenameW = Concatenate(plot3d_file_1+"W", istep[0], 6);
     } else if (which == 2) {
        plotfilename = Concatenate(plot3d_file_2, istep[0], 5);
-       plotfilenameU = Concatenate(plot3d_file_2+"U", istep[0], 5);
-       plotfilenameV = Concatenate(plot3d_file_2+"V", istep[0], 5);
-       plotfilenameW = Concatenate(plot3d_file_2+"W", istep[0], 5);
+       plotfilenameU = Concatenate(plot3d_file_2+"U", istep[0], 6);
+       plotfilenameV = Concatenate(plot3d_file_2+"V", istep[0], 6);
+       plotfilenameW = Concatenate(plot3d_file_2+"W", istep[0], 6);
     }
 
     // LSM writes it's own data
@@ -2293,9 +2293,9 @@ ERF::Write2DPlotFile (int which, PlotFileType plotfile_type, Vector<std::string>
 
     std::string plotfilename;
     if (which == 1) {
-       plotfilename = Concatenate(plot2d_file_1, istep[0], 5);
+       plotfilename = Concatenate(plot2d_file_1, istep[0], 6);
     } else if (which == 2) {
-       plotfilename = Concatenate(plot2d_file_2, istep[0], 5);
+       plotfilename = Concatenate(plot2d_file_2, istep[0], 6);
     }
 
     Vector<Geometry> my_geom(finest_level+1);

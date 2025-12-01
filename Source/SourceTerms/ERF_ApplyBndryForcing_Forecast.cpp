@@ -29,7 +29,7 @@ ApplyBndryForcing_Forecast (
     auto ProbHiArr = geom.ProbHiArray();
     auto ProbLoArr = geom.ProbLoArray();
 
-    amrex::ignore_unused(rho_w_initial_state);
+    //amrex::ignore_unused(rho_w_initial_state);
 
     // Domain valid box
     const Box& domain = geom.Domain();
@@ -37,6 +37,7 @@ ApplyBndryForcing_Forecast (
     int domhi_x = domain.bigEnd(0) + 1;
     int domlo_y = domain.smallEnd(1);
     int domhi_y = domain.bigEnd(1) + 1;
+
 
     Real hindcast_lateral_sponge_length   = solverChoice.hindcast_lateral_sponge_length;
     Real hindcast_lateral_sponge_strength = solverChoice.hindcast_lateral_sponge_strength;
@@ -123,8 +124,40 @@ ApplyBndryForcing_Forecast (
 
     ParallelFor(tbz, [=] AMREX_GPU_DEVICE(int i, int j, int k)
     {
-        Real z = z_phys_nd(i,j,k);
+        int ii = amrex::min(amrex::max(i, domlo_x), domhi_x);
+        int jj = amrex::min(amrex::max(j, domlo_y), domhi_y);
 
+        Real x = ProbLoArr[0] + (ii+0.5) * dx[0];
+        Real y = ProbLoArr[1] + (jj+0.5) * dx[1];
+
+        Real rho_w_sponge    = rho_w_initial_state(i,j,k)*cons_initial_state(i,j,k,0);
+
+        // x lo sponge
+            if (x < xlo_sponge_end) {
+                Real xi = (xlo_sponge_end - x) / hindcast_lateral_sponge_length;
+                rho_w_rhs(i, j, k) -= hindcast_lateral_sponge_strength * xi * xi * (rho_w(i, j, k) - rho_w_sponge);
+            }
+        // x hi sponge
+            if (x > xhi_sponge_start) {
+                Real xi = (x - xhi_sponge_start) / hindcast_lateral_sponge_length;
+                rho_w_rhs(i, j, k) -= hindcast_lateral_sponge_strength * xi * xi * (rho_w(i, j, k) - rho_w_sponge);
+            }
+
+        // y lo sponge
+            if (y < ylo_sponge_end) {
+                Real xi = (ylo_sponge_end - y) / hindcast_lateral_sponge_length;
+                rho_w_rhs(i, j, k) -= hindcast_lateral_sponge_strength * xi * xi * (rho_w(i, j, k) - rho_w_sponge);
+            }
+        // x right sponge
+            if (y > yhi_sponge_start) {
+                Real xi = (y - yhi_sponge_start) / hindcast_lateral_sponge_length;
+                rho_w_rhs(i, j, k) -= hindcast_lateral_sponge_strength * xi * xi * (rho_w(i, j, k) - rho_w_sponge);
+            }
+    });
+
+    ParallelFor(tbz, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+    {
+        Real z = z_phys_nd(i,j,k);
         if(hindcast_zhi_sponge_damping){
             if (z > zhi_sponge_start) {
                 Real xi = (z - zhi_sponge_start) / hindcast_zhi_sponge_length;

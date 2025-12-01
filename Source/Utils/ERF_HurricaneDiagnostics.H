@@ -50,6 +50,7 @@ void ComputeGlobalMinLocation(const amrex::Geometry& geom,
     in.value = local_val_min;
     in.rank  = rank;
 
+    std::cout << "The values on rank " << rank << " " << local_i_min << " " << local_j_min << " " << local_val_min << std::endl;
     #ifdef AMREX_USE_MPI
         MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
     #else
@@ -65,6 +66,7 @@ void ComputeGlobalMinLocation(const amrex::Geometry& geom,
 
     amrex::ParallelDescriptor::Bcast(&global_i_min, 1, owner_rank);
     amrex::ParallelDescriptor::Bcast(&global_j_min, 1, owner_rank);
+
 
     if (rank == 0) {
         amrex::Print() << "Global minimum distance to hurricane eye (k=0): "
@@ -86,6 +88,7 @@ void ComputeGlobalMinLocation(const amrex::Geometry& geom,
                 if (i == global_i_min && j == global_j_min && k == 0) {
                     *d_eye_lat_ptr = latlon_arr(i,j,k,0);
                     *d_eye_lon_ptr = latlon_arr(i,j,k,1);
+                    printf("The values of lat lon min are %d %d %0.15g %0.15g\n",i,j,latlon_arr(i,j,k,0),latlon_arr(i,j,k,1));
                 }
             });
         }
@@ -152,15 +155,17 @@ void HurricaneEyeTrackerInitial (const amrex::Geometry& geom,
     int* d_i_min_ptr = d_i_min.dataPtr();
     int* d_j_min_ptr = d_j_min.dataPtr();
 
-    for (amrex::MFIter mfi(S_data[IntVars::cons]); mfi.isValid(); ++mfi) {
+    const amrex::MultiFab& latlon_mf = (*forecast_state_at_lev)[4];
+
+    for (amrex::MFIter mfi(latlon_mf); mfi.isValid(); ++mfi) {
         const amrex::Box& box = mfi.validbox();
-        const auto latlon_arr = (*forecast_state_at_lev)[4].array(mfi);
+        const auto latlon_arr = latlon_mf.array(mfi);
 
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            if (k==0) {
-
+             if (k==0) {
                 amrex::Real dlat = latlon_arr(i,j,k,0) - hurricane_eye_latitude;
                 amrex::Real dlon = latlon_arr(i,j,k,1) - hurricane_eye_longitude;
+                //printf("Values of lat and lon are %0.15g %0.15g\n", latlon_arr(i,j,k,0), latlon_arr(i,j,k,1));
                 amrex::Real dist = std::sqrt(dlat*dlat + dlon*dlon);
                 // Atomic min using device pointer from DeviceVector
                 amrex::Real old = amrex::Gpu::Atomic::Min(&d_val_min_ptr[0], dist);
@@ -326,7 +331,6 @@ HurricaneMaxVelTracker(const amrex::Geometry& geom,
     amrex::Real h_val_max_global = -1.0e30;
      #ifdef AMREX_USE_MPI
         MPI_Allreduce(&h_val_max_local, &h_val_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        h_val_max_global = h_val_max_local;
     #else
         h_val_max_global = h_val_max_local;
     #endif

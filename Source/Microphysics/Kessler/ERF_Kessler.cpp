@@ -26,6 +26,8 @@ void Kessler::AdvanceKessler (const SolverChoice &solverChoice)
         Real dtn  = dt;
         Real coef = dtn/m_dzmin;
 
+
+
         // Saturation and evaporation calculations go first
         for ( MFIter mfi(*tabs,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             auto qv_array    = mic_fab_vars[MicVar_Kess::qv]->array(mfi);
@@ -125,7 +127,7 @@ void Kessler::AdvanceKessler (const SolverChoice &solverChoice)
                 qc_array(i,j,k) = std::max(0.0, qc_array(i,j,k));
                 qp_array(i,j,k) = std::max(0.0, qp_array(i,j,k));
 
-                qt_array(i,j,k) = qv_array(i,j,k) + qc_array(i,j,k);
+                //qt_array(i,j,k) = qv_array(i,j,k) + qc_array(i,j,k);
             });
         }
 
@@ -184,8 +186,10 @@ void Kessler::AdvanceKessler (const SolverChoice &solverChoice)
         coef /= Real(n_substep);
         dtn  /= Real(n_substep);
 
+        dtn = dt;
+
         // Substep the vertical advection
-        for (int nsub(0); nsub<n_substep; ++nsub) {
+        for (int nsub(0); nsub<1; ++nsub) {
             for ( MFIter mfi(*tabs, TilingIfNotGPU()); mfi.isValid(); ++mfi ){
                 auto rho_array = mic_fab_vars[MicVar_Kess::rho]->array(mfi);
                 auto qp_array  = mic_fab_vars[MicVar_Kess::qp]->array(mfi);
@@ -193,6 +197,8 @@ void Kessler::AdvanceKessler (const SolverChoice &solverChoice)
                 auto fz_array  = fz.array(mfi);
 
                 const auto dJ_array = (m_detJ_cc) ? m_detJ_cc->const_array(mfi) : Array4<const Real>{};
+
+                const auto z_arr = m_z_phys_nd->array(mfi);
 
                 const Box& tbx = mfi.tilebox();
                 const Box& tbz = mfi.tilebox(IntVect(0,0,1),IntVect(0));
@@ -237,10 +243,10 @@ void Kessler::AdvanceKessler (const SolverChoice &solverChoice)
 
                     if(std::fabs(fz_array(i,j,k+1)) < 1e-14) fz_array(i,j,k+1) = 0.0;
                     if(std::fabs(fz_array(i,j,k  )) < 1e-14) fz_array(i,j,k  ) = 0.0;
-                    Real dq_sed = dJinv * (1.0/rho_array(i,j,k)) * (fz_array(i,j,k+1) - fz_array(i,j,k)) * coef;
+                    Real dq_sed = (1.0/rho_array(i,j,k)) * (fz_array(i,j,k+1) - fz_array(i,j,k)) * dtn/(z_arr(i,j,k+1)-z_arr(i,j,k));
                     if(std::fabs(dq_sed) < 1e-14) dq_sed = 0.0;
 
-                    qp_array(i,j,k) +=  dq_sed;
+                    //qp_array(i,j,k) +=  dq_sed;
                     qp_array(i,j,k)  = std::max(0.0, qp_array(i,j,k));
                 });
             } // mfi
@@ -297,17 +303,17 @@ void Kessler::AdvanceKessler (const SolverChoice &solverChoice)
                     dq_clwater_to_vapor = std::min(qc_array(i,j,k), (qsat - qv_array(i,j,k))/(1.0 + fac));
                 }
 
-                qv_array(i,j,k) += -dq_vapor_to_clwater + dq_clwater_to_vapor;
-                qc_array(i,j,k) +=  dq_vapor_to_clwater - dq_clwater_to_vapor;
+                //qv_array(i,j,k) += -dq_vapor_to_clwater + dq_clwater_to_vapor;
+                //qc_array(i,j,k) +=  dq_vapor_to_clwater - dq_clwater_to_vapor;
 
                 Real theta_over_T = theta_array(i,j,k)/tabs_array(i,j,k);
 
-                theta_array(i,j,k) += theta_over_T * d_fac_cond * (dq_vapor_to_clwater - dq_clwater_to_vapor);
+                //theta_array(i,j,k) += theta_over_T * d_fac_cond * (dq_vapor_to_clwater - dq_clwater_to_vapor);
 
-                qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
-                qc_array(i,j,k) = std::max(0.0, qc_array(i,j,k));
+                //qv_array(i,j,k) = std::max(0.0, qv_array(i,j,k));
+                //qc_array(i,j,k) = std::max(0.0, qc_array(i,j,k));
 
-                qt_array(i,j,k) = qv_array(i,j,k) + qc_array(i,j,k);
+                //qt_array(i,j,k) = qv_array(i,j,k) + qc_array(i,j,k);
             });
         }
     }
