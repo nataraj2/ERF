@@ -442,6 +442,7 @@ ERF::ReadStormTrackerRestart ()
     {
         fs::path file = last_file(base_dir / "xy");
 
+        std::cout << "Found file " << file << std::endl;
         if (!file.empty())
         {
             std::ifstream ifs(file);
@@ -488,11 +489,12 @@ ERF::HurricaneEyeTracker (const SolverChoice& sc)
                                    hurricane_eye_longitude);
         is_start = false;
     } else {
-         if(!restart_chkfile.empty()) {
+         if(is_start and !restart_chkfile.empty()) {
             ReadStormTrackerRestart();
         }
         HurricaneEyeTrackerNotInitial(sc, geom[levc], vars_new[levc],
                                       moisture_type);
+        is_start = false;
     }
     HurricaneTrackerCircle();
 }
