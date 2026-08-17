@@ -94,6 +94,10 @@ int main (int argc, char* argv[])
     int n_ens = 1;
     pp_ens.query("n_members", n_ens);
 
+    ParmParse pp_erf("erf");
+    bool is_init_for_ensemble = false;
+    pp_erf.query("is_init_for_ensemble", is_init_for_ensemble);
+
     // Ensemble run loop
     for (int ie = 0; ie < n_ens; ++ie)
     {
@@ -120,7 +124,7 @@ int main (int argc, char* argv[])
     // --------------------------------------------------------
     ParallelDescriptor::Barrier();
 
-    if (ParallelDescriptor::IOProcessor())
+    if (is_init_for_ensemble && ParallelDescriptor::IOProcessor())
     {
         // Create zero-padded member directory
         std::stringstream ss;
@@ -152,13 +156,13 @@ int main (int argc, char* argv[])
     ParallelDescriptor::Barrier();
    } // Ensemble run loop complete
 
-   ERF tmp_erf;
+   //ERF tmp_erf;
    // This is only a post-processing step for visualization
-   tmp_erf.ComputeAndWriteEnsemblePerturbations();
+   //tmp_erf.ComputeAndWriteEnsemblePerturbations();
 
    // Perform data assimilation
-   int da_iter = 0;
-   tmp_erf.PerformDataAssimilation(da_iter);
+   //int da_iter = 0;
+   //tmp_erf.PerformDataAssimilation(da_iter);
 
    BL_PROFILE_VAR_STOP(pmain);
 
