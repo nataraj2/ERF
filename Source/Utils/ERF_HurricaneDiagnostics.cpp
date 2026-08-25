@@ -635,29 +635,38 @@ ERF::ReadStormTrackerRestart ()
  *
  * @param[in] sc Solver choices
  */
+
 void
 ERF::HurricaneEyeTracker (const SolverChoice& sc)
 {
     static bool is_start = true;
-    int levc=finest_level;
+    int levc = finest_level;
 
-    const MoistureType moisture_type   = sc.moisture_type;
-    const Real hurricane_eye_latitude  = sc.hurricane_eye_latitude;
+    const MoistureType moisture_type  = sc.moisture_type;
+    const Real hurricane_eye_latitude = sc.hurricane_eye_latitude;
     const Real hurricane_eye_longitude = sc.hurricane_eye_longitude;
 
-    if(is_start and restart_chkfile.empty()){
-        HurricaneEyeTrackerInitial(sc, geom[levc],
-                                   vars_new[levc],
-                                   hurricane_eye_latitude,
-                                   hurricane_eye_longitude);
-        is_start = false;
-    } else {
-         if(!restart_chkfile.empty()) {
+    if (is_start)
+    {
+        if (restart_chkfile.empty())
+        {
+            HurricaneEyeTrackerInitial(sc, geom[levc],
+                                       vars_new[levc],
+                                       hurricane_eye_latitude,
+                                       hurricane_eye_longitude);
+        }
+        else
+        {
             ReadStormTrackerRestart();
         }
-        HurricaneEyeTrackerNotInitial(sc, geom[levc], vars_new[levc],
-                                      moisture_type);
+
+        is_start = false;
     }
+
+    HurricaneEyeTrackerNotInitial(sc, geom[levc],
+                                  vars_new[levc],
+                                  moisture_type);
+
     HurricaneTrackerCircle();
 }
 
