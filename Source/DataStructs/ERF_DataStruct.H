@@ -1553,13 +1553,13 @@ struct SolverChoice {
         pp.queryAdd("station_plot_freq", station_plot_freq);
 
         if(io_station_tracker)
-            if(station_latitude != -1.0 || station_longitude == -1.0){
+            if(station_latitude == -1e3 || station_longitude == -1e3){
                 amrex::Abort("You have turned on IO for station tracker by using erf.station_tracker=true."
                       "This requires valid values for erf.station_latitude and erf.station_longitude in the inputs.");
             }
 
         if(io_station_tracker and station_plot_freq == -1) {
-            amrex::Abort("You have turned on IO for station tracker by using erf.station_tracker=true."
+            amrex::Abort("You have turned on IO for station tracker by using erf.io_station_tracker=true."
                   "This requires valid value for the frequency at which the line plot files should be written"
                   "using erf.station_plot_freq.");
         }
@@ -2320,7 +2320,7 @@ struct SolverChoice {
     amrex::Real hurricane_eye_latitude = -1e10, hurricane_eye_longitude = -1e10;
 
     bool io_station_tracker = false;
-    amrex::Real station_latitude= -1.0, station_longitude = -1.0;
+    amrex::Real station_latitude= -1e3, station_longitude = -1e3;
     int station_plot_freq = -1;
 
     bool is_init_for_ensemble = false;

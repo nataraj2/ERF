@@ -1,6 +1,3 @@
-#ifndef ERF_WEATHER_DIAGNOSTICS_H_
-#define ERF_WEATHER_DIAGNOSTICS_H_
-
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
 #include <AMReX_ParallelReduce.H>
@@ -25,8 +22,6 @@ namespace fs = std::filesystem;
 #ifndef M_PI
 #define M_PI Real(3.14159265358979323846)
 #endif
-
-namespace {
 
 /**
  * Linearize a 2D (i,j) index relative to the domain so that an arg-min can be
@@ -55,9 +50,6 @@ void unpack_ij (const Long idx, const int nx, const Dim3& dlo, int& i, int& j) n
         j = static_cast<int>(idx / static_cast<Long>(nx)) + dlo.y;
     }
 }
-
-} // anonymous namespace
-
 
 /**
  * Compute the global minimum and its location across all ranks.
@@ -326,7 +318,7 @@ ERF::TrackerAtStation_RainAccumulation(const SolverChoice& sc,
 void
 ERF::WeatherDiagnosticsTracker (const SolverChoice& sc)
 {
-    static bool is_start = true;
+    static bool is_start = false;
     int levc=finest_level;
 
     const Real station_latitude  = sc.station_latitude;
@@ -340,6 +332,7 @@ ERF::WeatherDiagnosticsTracker (const SolverChoice& sc)
                                                vars_new[levc],
                                                station_latitude,
                                                station_longitude);
+        is_start = true;
     }
 
     TrackerAtStation_RainAccumulation(sc,
@@ -347,4 +340,3 @@ ERF::WeatherDiagnosticsTracker (const SolverChoice& sc)
                                       station_loc,
                                       t_new[0]);
 }
-#endif

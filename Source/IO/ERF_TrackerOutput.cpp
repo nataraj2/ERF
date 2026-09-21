@@ -153,7 +153,7 @@ ERF::MakeStationTrackerFilename(const std::string& basename,
 {
     std::ostringstream filename;
     filename << "StationTracker/" << basename << "_"
-             << std::setw(6) << std::setfill('0') << nstep << ".txt";;
+             << std::setw(6) << std::setfill('0') << nstep << ".txt";
 
     return filename.str();
 }
