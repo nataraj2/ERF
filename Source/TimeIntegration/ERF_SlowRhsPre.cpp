@@ -120,7 +120,11 @@ void erf_slow_rhs_pre (int level, int finest_level,
                        YAFluxRegister* fr_as_fine,
                        const MultiFab* cloud_chamber_base_state,
                        const erf_cloud_chamber::Config* cloud_chamber_config,
-                       CloudChamberBudget* cloud_budget)
+                       CloudChamberBudget* cloud_budget,
+                       const MultiFab* ib_wall_face13,
+                       const MultiFab* ib_wall_face23,
+                       const MultiFab* ib_wall_face33,
+                       const MultiFab* ib_wall_hfx)
 {
     BL_PROFILE_REGION("erf_slow_rhs_pre()");
 
@@ -172,10 +176,10 @@ void erf_slow_rhs_pre (int level, int finest_level,
     bool l_apply_surface_layer_fluxes_in_diffusion = l_use_SurfLayer;
     const bool l_rotate        = (solverChoice.use_rotate_surface_flux);
 
-    const bool l_anelastic = (solverChoice.anelastic[level]     == 1);
+    const bool l_anelastic = (solverChoice.compressibility_type[level] != CompressibilityType::FullyCompressible);
     const bool l_fixed_rho = (solverChoice.fixed_density[level] == 1);
 
-    const bool l_anelastic_rk2 = (solverChoice.anelastic_type[level] == AnelasticType::RK2);
+    const bool l_anelastic_rk2 = (solverChoice.timestepping_type[level] == TimesteppingType::RK2);
 
     const bool l_reflux = IsRefluxStage(solverChoice, level, finest_level, nrk);
     const Real l_reflux_dt = RefluxStageWeight(solverChoice, level, finest_level, nrk) * static_cast<Real>(dt);
@@ -230,7 +234,8 @@ void erf_slow_rhs_pre (int level, int finest_level,
                            S_data,xvel,yvel,zvel,
                            Tau_lev,Tau_corr_lev,
                            SmnSmn,eddyDiffs,geom,solverChoice,SurfLayer,
-                           stretched_dz_d, detJ,mapfac, ax, ay, az, ebfact);
+                           stretched_dz_d, detJ,mapfac, ax, ay, az, ebfact,
+                           ib_wall_face13, ib_wall_face23);
 
         IntVect ng(0,0,1);
         dflux_x = std::make_unique<MultiFab>(convert(ba,IntVect(1,0,0)), dm, nvars, ng);
@@ -725,7 +730,9 @@ void erf_slow_rhs_pre (int level, int finest_level,
                                        hfx_x, hfx_y, hfx_z, q1fx_x, q1fx_y, q1fx_z, q2fx_z,
                                        mu_turb, solverChoice, level,
                                        bc_ptr_d, l_apply_surface_layer_fluxes_in_diffusion, SurfLayer, l_vert_implicit_fac,
-                                       l_reflux_diffusion);
+                                       l_reflux_diffusion,
+                                       (ib_wall_face33) ? ib_wall_face33->const_array(mfi) : Array4<const Real>{},
+                                       (ib_wall_hfx)    ? ib_wall_hfx->const_array(mfi)    : Array4<const Real>{});
             }
             if (use_physical_chamber_wall_flux) {
                 erf_cloud_chamber_wall_flux::apply(
@@ -733,7 +740,7 @@ void erf_slow_rhs_pre (int level, int finest_level,
                     cloud_chamber_base_state->const_array(mfi), u, v, w, cell_rhs,
                     diffflux_x, diffflux_y, diffflux_z, dxInv,
                     chamber_walls, dc.alpha_T, dc.alpha_C,
-                    solverChoice.rdOcp, cloud_chamber_config->cloudy);
+                    solverChoice.rdOcp, cloud_chamber_config->has_moisture);
             }
         }
 
@@ -786,7 +793,7 @@ void erf_slow_rhs_pre (int level, int finest_level,
                     bx, domain, cell_data,
                     cloud_chamber_base_state->const_array(mfi), u, v, w,
                     tau12, tau13, tau23, dxInv, chamber_walls,
-                    solverChoice.rdOcp, cloud_chamber_config->cloudy);
+                    solverChoice.rdOcp, cloud_chamber_config->has_moisture);
             }
 
             // Note: tau** were calculated with calls to

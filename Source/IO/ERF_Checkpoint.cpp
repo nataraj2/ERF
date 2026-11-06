@@ -18,6 +18,7 @@
 #include "ERF_IntervalMeansCheckpoint.H"
 #include "ERF_CheckpointSurfaceTemperature.H"
 #include "ERF_CheckpointLsmData.H"
+#include "ERF_CheckpointLandmask.H"
 #include "ERF_ReadCheckpointMF.H"
 #include "ERF_SBMStateManager.H"
 #include "ERF_SBMRestart.H"
@@ -419,7 +420,7 @@ ERF::WriteCheckpointFile () const
         MultiFab::Copy(zvel,vars_new[lev][Vars::zvel],0,0,1,0);
         VisMF::Write(zvel, MultiFabFileFullPrefix(lev, checkpointname, "Level_", "ZFace"));
 
-        if (solverChoice.anelastic[lev] == 1) {
+        if (solverChoice.compressibility_type[lev] != CompressibilityType::FullyCompressible) {
             MultiFab ppinc(grids[lev],dmap[lev],1,0);
             MultiFab::Copy(ppinc,pp_inc[lev],0,0,1,0);
             VisMF::Write(ppinc, MultiFabFileFullPrefix(lev, checkpointname, "Level_", "PP_Inc"));
@@ -1524,7 +1525,7 @@ ERF::ReadCheckpointFile ()
         vars_new[lev][Vars::zvel].ParallelCopy(zvel,0,0,1,IntVect(0),IntVect(0));
         vars_new[lev][Vars::zvel].setBndry(bogus_large_value);
 
-        if (solverChoice.anelastic[lev] == 1) {
+        if (solverChoice.compressibility_type[lev] != CompressibilityType::FullyCompressible) {
             MultiFab ppinc(ba_chkfile[lev],dm_chkfile[lev],1,0);
             VisMF::Read(ppinc, MultiFabFileFullPrefix(lev, restart_chkfile, "Level_", "PP_Inc"));
             pp_inc[lev].ParallelCopy(ppinc,0,0,1,IntVect(0),IntVect(0));
@@ -1943,6 +1944,11 @@ ERF::ReadCheckpointFile ()
             lmask_lev[lev][0]->FillBoundary(geom[lev].periodicity());
         }
 
+        if (solverChoice.buildings_type == BuildingsType::ImmersedForcing &&
+            !immersed_forcing_active(lev)) {
+            erf_checkpoint_landmask::restore_coarse_building_landmask(*lmask_lev[lev][0]);
+        }
+
         std::string LTypeFileName = MultiFabFileFullPrefix(lev, restart_chkfile, "Level_", "LANDTYPE_0_H");
         if (amrex::FileExists(LTypeFileName))
         {
@@ -2266,7 +2272,7 @@ ERF::ReadCheckpointFile ()
             bdy_data_yhi.resize(ntimes_erfbdy);
 
             // Determine which times we need based on current simulation time.
-            double time_since_start_bdy = t_new[0] + start_time - start_bdy_time;
+            double time_since_start_bdy = t_new[0] + (start_time - start_bdy_time);
             int n_time_old = std::min(static_cast<int>(time_since_start_bdy / bdy_time_interval), ntimes_erfbdy-1);
             int n_time_new = n_time_old + 1;
 
@@ -2444,6 +2450,10 @@ ERF::ReadCheckpointFileSurfaceLayer ()
 
                 // Z0
                 read_most_var("Z0" + face, m_SurfaceLayer[ori]->get_z0(lev));
+
+                // Older checkpoints can contain initialization sentinels in
+                // immersed columns, which skip the usual MOST/LSM updates.
+                m_SurfaceLayer[ori]->set_immersed_surface_params(lev);
 
                 // The exponentially filtered averages.  We only mark the filter as initialized
                 // if every piece of its state came back, so that a partial restore degrades to

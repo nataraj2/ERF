@@ -407,7 +407,7 @@ bool ERF::cf_zface_coarse_data (int lev, double time_d, bool conserved_rho,
         MultiFab rOm(L.ba_cf, sdm, 1, 0);
         rOm.setVal(0.0);
         rOm.ParallelCopy(m_cf_step_zflux[levc], 0, 0, 1, IntVect(0), IntVect(0), cper);
-        const Real kfac = (solverChoice.anelastic_type[lev] == AnelasticType::MidPoint) ? one : Real(2);
+        const Real kfac = (solverChoice.timestepping_type[lev] == TimesteppingType::MidPoint) ? one : Real(2);
         for (MFIter mfi(cOm); mfi.isValid(); ++mfi) {
             const Array4<Real      > om = cOm.array(mfi);
             const Array4<Real const> oo = cOm_o.const_array(mfi);
@@ -498,7 +498,7 @@ void ERF::set_cf_zface_omega (int lev, MultiFab& omega, const MultiFab& omega_t,
                               const Vector<int>& slab_box)
 {
     BL_PROFILE("ERF::set_cf_zface_omega()");
-    if (slab_box.empty() || !solverChoice.anelastic[lev]) { return; }
+    if (slab_box.empty() || (solverChoice.compressibility_type[lev] == CompressibilityType::FullyCompressible)) { return; }
     const auto& patches = cf_zface_layout(lev).patches;
     for (MFIter mfi(omega_t); mfi.isValid(); ++mfi) {
         const int n = slab_box[mfi.index()];
@@ -527,7 +527,7 @@ void ERF::set_cf_zface_omega (int lev, MultiFab& omega, const MultiFab& omega_t,
  */
 bool ERF::cf_interp_mass_flux (int lev) const
 {
-    return solverChoice.anelastic[lev] && solverChoice.mesh_type == MeshType::VariableDz;
+    return solverChoice.compressibility_type[lev] != CompressibilityType::FullyCompressible && solverChoice.mesh_type == MeshType::VariableDz;
 }
 
 /**
@@ -794,7 +794,7 @@ void ERF::average_down_mass_flux (int crse_lev)
 bool ERF::cf_anelastic_flux_match (int lev) const
 {
     return cf_flux_history_enabled() && lev > 0 && lev <= finest_level &&
-           solverChoice.anelastic[lev] && solverChoice.anelastic[lev-1] &&
+           solverChoice.compressibility_type[lev] != CompressibilityType::FullyCompressible && solverChoice.compressibility_type[lev-1] != CompressibilityType::FullyCompressible &&
            solverChoice.terrain_type != TerrainType::EB &&
            solverChoice.terrain_type != TerrainType::MovingFittedMesh;
 }
@@ -877,7 +877,7 @@ void ERF::cf_anelastic_stage_registration (int lev, int nrk)
     if (static_cast<int>(m_cf_stage1.size()) <= lev) { m_cf_stage1.resize(lev+1, 0); }
     m_cf_stage1[lev] = (nrk == 0) ? 1 : 0;
 
-    const Real k = (solverChoice.anelastic_type[lev] == AnelasticType::MidPoint) ? one : Real(2);
+    const Real k = (solverChoice.timestepping_type[lev] == TimesteppingType::MidPoint) ? one : Real(2);
     // On a terrain-fitted mesh the coarse momenta are registered as mass fluxes
     //    (RegisterCoarseMomentumCF); on a flat mesh as momenta, and the shift is converted
     const bool mass_flux = cf_interp_mass_flux(lev);
@@ -1033,10 +1033,12 @@ void ERF::FillSetMomentaCF (int lev, double time_d, MultiFab& xmom, MultiFab& ym
 {
     BL_PROFILE("ERF::FillSetMomentaCF()");
     PhysBCFunctNoOp null_bc;
+    set_cf_fill_options(lev, true);
     FillSetHorizontalMomentaCF(lev, time_d, xmom, ymom);
     FPr_w[lev-1].FillSet(zmom, time_d, null_bc, domain_bcs_type);
+    set_cf_fill_options(lev, false);
 
-    if (!solverChoice.anelastic[lev] || solverChoice.mesh_type != MeshType::VariableDz) { return; }
+    if ((solverChoice.compressibility_type[lev] == CompressibilityType::FullyCompressible) || solverChoice.mesh_type != MeshType::VariableDz) { return; }
 
     MultiFab omega_t, rhou_g, rhov_g;
     Vector<int> slab_box;
@@ -1089,5 +1091,28 @@ void ERF::FillSetMomentaCF (int lev, double time_d, MultiFab& xmom, MultiFab& ym
                 w_a(i,j,k) = WFromOmega(i,j,k,t_a(i,j,k),ru_a,rv_a,mf_u,mf_v,z_nd,dxInv);
             });
         }
+    }
+}
+
+/**
+ * Give the face fills of level lev (FPr_u/v/w[lev-1]) the log-law share of the wall coarse face's
+ * flux (erf.cf_loglaw_fill) for the set fills that follow, or clear it (on = false), so that the
+ * relax fills never see it. The wall is the immersed surface (from the level's solid fraction)
+ * when the terrain or the buildings are immersed, else the bottom of the domain.
+ *
+ * @param lev Fine level whose coarse/fine faces are filled
+ * @param on  Set the option (true) or clear it (false)
+ */
+void
+ERF::set_cf_fill_options (int lev, bool on)
+{
+    if (lev < 1) { return; }
+    const bool immersed = (solverChoice.terrain_type   == TerrainType::ImmersedForcing ||
+                           solverChoice.buildings_type == BuildingsType::ImmersedForcing);
+    const bool have_tb = immersed && terrain_blanking[lev];
+    const bool loglaw  = on && solverChoice.cf_loglaw_fill && (!immersed || have_tb);
+    const MultiFab* wall_tb = (loglaw && have_tb) ? terrain_blanking[lev].get() : nullptr;  // no stale pointer when off
+    for (ERFFillPatcher* fp : {&FPr_u[lev-1], &FPr_v[lev-1], &FPr_w[lev-1]}) {
+        fp->SetLogLawFill(loglaw, solverChoice.cf_loglaw_z0, wall_tb);
     }
 }

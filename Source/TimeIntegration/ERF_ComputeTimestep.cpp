@@ -187,19 +187,12 @@ ERF::ComputeDiffusiveRates (int lev, Real& rate_mom, Real& rate_scal) const
     // three-stage scheme; anelastic MidPoint is two stages; anelastic RK2 turns the implicit
     // solve off (its factors are zero).
     const auto& fac = solverChoice.vert_implicit_fac[lev];
-    const int nstages = (solverChoice.anelastic[lev] &&
-                         solverChoice.anelastic_type[lev] == AnelasticType::MidPoint) ? 2 : 3;
+    const int nstages = (solverChoice.compressibility_type[lev] != CompressibilityType::FullyCompressible &&
+                         solverChoice.timestepping_type[lev] == TimesteppingType::MidPoint) ? 2 : 3;
     const Real e_uv = ExplicitVerticalFraction(nstages, fac, solverChoice.implicit_momentum_diffusion);
     const Real e_th = ExplicitVerticalFraction(nstages, fac, solverChoice.implicit_thermal_diffusion);
     const Real e_ke = ExplicitVerticalFraction(nstages, fac, solverChoice.implicit_ke_diffusion);
-    // The implicit solve treats the diffChoice.n_qstate_moist water species starting at
-    // RhoQ1_comp (with SBM only qv, but the host does not diffuse the SBM liquid lanes at
-    // all).  Non-water species a microphysics model packs directly after them share the Q
-    // diffusivities and diffuse explicitly, and so do the advected scalars.
-    const bool nonmoist_q = (vars_new[lev][Vars::cons].nComp() >
-                             RhoQ1_comp + solverChoice.diffChoice.n_qstate_moist);
-    const Real e_q  = nonmoist_q ? one
-                                 : ExplicitVerticalFraction(nstages, fac, solverChoice.implicit_moisture_diffusion);
+    const Real e_q = ExplicitVerticalFraction(nstages, fac, solverChoice.implicit_moisture_diffusion);
     DiffusiveRateSettings set;
     set.variable_dz = variable_dz;
     set.has_q       = (solverChoice.moisture_type != MoistureType::None);
@@ -386,8 +379,8 @@ ERF::estTimeStep (int level, long& dt_fast_ratio) const
                                                         &vars_new[level][Vars::yvel],
                                                         &vars_new[level][Vars::zvel],});
 
-    const bool chamber_cloudy = cloud_chamber_config.active &&
-        cloud_chamber_config.cloudy;
+    const bool chamber_has_moisture = cloud_chamber_config.active &&
+        cloud_chamber_config.has_moisture;
     const Real rdOcp = solverChoice.rdOcp;
     const MultiFab& chamber_base_state = base_state[level];
     for (MFIter mfi(S_new); mfi.isValid(); ++mfi) {
@@ -399,15 +392,15 @@ ERF::estTimeStep (int level, long& dt_fast_ratio) const
         {
             const Real rho = state(i,j,k,Rho_comp);
             velocity(i,j,k,3) = state(i,j,k,RhoTheta_comp) / rho;
-            velocity(i,j,k,4) = chamber_cloudy ?
+            velocity(i,j,k,4) = chamber_has_moisture ?
                 state(i,j,k,RhoQ1_comp) / rho : Real(0.0);
             velocity(i,j,k,5) = base(i,j,k,BaseState::p0_comp);
             velocity(i,j,k,6) = rdOcp;
         });
     }
 
-    bool l_substepping = (solverChoice.substepping_type[level] == SubsteppingType::Implicit);
-    int  l_anelastic   = solverChoice.anelastic[level];
+    bool l_substepping = (solverChoice.timestepping_type[level] == TimesteppingType::RK3_ImplicitSubstep);
+    int  l_anelastic   = solverChoice.compressibility_type[level] != CompressibilityType::FullyCompressible;
 
     bool l_comp_substepping_diag = (verbose && l_substepping && !l_anelastic && solverChoice.substepping_diag);
 
@@ -976,7 +969,7 @@ ERF::estTimeStep (int level, long& dt_fast_ratio) const
          }
      }
 
-     if (solverChoice.substepping_type[level] != SubsteppingType::None) {
+     if (solverChoice.timestepping_type[level] == TimesteppingType::RK3_ImplicitSubstep) {
          if (fixed_dt[level] > zero && fixed_fast_dt[level] > zero) {
              dt_fast_ratio = static_cast<long>( fixed_dt[level] / fixed_fast_dt[level] );
              if (dt_fast_ratio < 1) {
