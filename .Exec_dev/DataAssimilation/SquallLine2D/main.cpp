@@ -111,8 +111,33 @@ int main (int argc, char* argv[])
     int n_ens = 1;
     pp_ens.query("n_members", n_ens);
 
+    Print() << "Doing data assimilation cycle 0 (initialization)" <<std::endl;
+
+    // Perform data assimilation at initialization
+
+    for (int ens_no = 0; ens_no < n_ens; ++ens_no)
+    {
+        ERF erf;
+
+        if(is_init_for_ensemble) {
+            erf.SetDirsForPlotfilesAndCheckpointsForDA(0, ens_no);
+        }
+        erf.InitData();
+        ParallelDescriptor::Barrier();
+    }
+
+    ERF tmp_erf_init;
+    if(is_init_for_ensemble and num_da_cycles > 0) {
+        tmp_erf_init.PerformDataAssimilation(0);
+    }
+
+    Print() << "Data assimilation cycle 0 complete" << std::endl;
+
+    ParallelDescriptor::Barrier();
+    exit(0);
+
     // Data assimilation cycle loop
-    for (int da_iter = 0; da_iter < num_da_cycles; ++da_iter) {
+    for (int da_iter = 1; da_iter < num_da_cycles; ++da_iter) {
         Print() << "Doing data assimilation cycle " << da_iter <<std::endl;
         // Ensemble run loop
         for (int ens_no = 0; ens_no < n_ens; ++ens_no)

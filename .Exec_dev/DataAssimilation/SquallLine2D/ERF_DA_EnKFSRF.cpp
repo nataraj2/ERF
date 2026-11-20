@@ -273,6 +273,16 @@ ERF::PerformDataAssimilation(int da_iter)
 
     Print() << "compute_R_diag_vals complete" << std::endl;
 
+    {
+        const IntVect thin = get_obs_thinning();
+        const IntVect len  = geom[0].Domain().length();
+        long n_sel = 1;
+        for (int d = 0; d < 3; ++d) { n_sel *= (len[d] + thin[d] - 1) / thin[d]; }
+        Print() << "Observation thinning strides (x,y,z) = (" << thin[0] << ", "
+                << thin[1] << ", " << thin[2] << "); observed cells = " << n_sel
+                << " of " << len[0]*len[1]*len[2] << " (x 8 variables)" << std::endl;
+    }
+
     // Compute d'=R_inv*d
     MultiFab d_prime_vec;
     compute_d_prime_vec(d_prime_vec, d_vec, R_diag);
@@ -290,6 +300,9 @@ ERF::PerformDataAssimilation(int da_iter)
     compute_S_matrix(da_iter, S_mat, Nens, mean_H_xf, R_diag, last_pf_name, varnames);
 
     Print() << "compute_S_matrix complete" << std::endl;
+
+    // Diagnostic: eigenvalues of S show how strongly the spread collapses
+    print_S_eigenvalues(S_mat);
 
     Vector<Real> alpha_vec;
     compute_alpha_vec(Nens, S_mat, r_vec, alpha_vec);
@@ -399,4 +412,7 @@ ERF::PerformDataAssimilation(int da_iter)
         check_file = MakeEnsembleCheckpointName(da_iter, n);
         WriteCheckpointFile();
     }
+
+    // Consistency check: mean of the ensemble updates should be ~0
+    ComputeEnsembleUpdateMean(da_iter);
 }

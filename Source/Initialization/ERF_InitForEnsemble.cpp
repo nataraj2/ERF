@@ -12,18 +12,27 @@ namespace fs = std::filesystem;
 
 void ApplyNeumannBCs (const Geometry& geom, MultiFab& mf_cc);
 
+// Absolute standard deviation of the initial ensemble perturbation for each variable
+// (same units as the variable). Hard coded for now; ideally set from the measured
+// error between the coarsened-then-reinterpolated state and the fine-mesh truth.
+// For the moisture variables the std is additionally capped at moist_pert_max_rel
+// times the local background value (see AddPertToBckgnd), so that no spurious
+// cloud/rain is created where the background has none.
 Vector<Real>
-perturb_scale =
+perturb_sigma =
 {
-    0.01,       // density [kg/m3]
-    1.0,        // theta [K]
+    0.0,        // density [kg/m3]  (not perturbed independently; avoids hydrostatic imbalance)
+    0.5,        // theta [K]
     1.0,        // u [m/s]
-    1.0,        // v [m/s]
-    0.5,        // w [m/s]
-    1.0e-6,     // qv [kg/kg]
-    1.0e-6,      // qc [kg/kg]
-    1.0e-6      // qrain [kg/kg]
+    0.0,        // v [m/s]          (2D problem: v is identically zero)
+    1.0,        // w [m/s]
+    3.0e-4,     // qv [kg/kg]
+    1.0e-4,     // qc [kg/kg]
+    1.0e-4      // qrain [kg/kg]
 };
+
+// Cap on the moisture perturbation std as a fraction of the background value
+constexpr Real moist_pert_max_rel = 0.2;
 
 /**
  * Create a cell-centered MultiFab of random perturbations for one AMR level.
@@ -688,27 +697,37 @@ MakeFinalMultiFabs (const MultiFab& mf_cc_fine,
 }
 
 /**
- * Add normalized perturbations to the interpolated background state.
+ * Add perturbations to the interpolated background state.
+ *
+ * The (unit-RMS, spatially correlated) perturbation field is scaled by the absolute,
+ * per-variable standard deviation perturb_sigma[n]. For the moisture variables
+ * (components 5,6,7: qv, qc, qrain) the std is capped at moist_pert_max_rel times the
+ * local background value and the result is clipped at zero.
  *
  * @param mf_cc_fine Background state modified in place
- * @param mf_cc_pert Perturbation field to apply
- * @param ens_pert_amplitude Relative perturbation amplitude
+ * @param mf_cc_pert Perturbation field to apply (unit RMS per component)
+ * @param ens_pert_amplitude Unused; kept so the interface is unchanged. The amplitudes
+ *                           are now the absolute values in perturb_sigma.
  */
 void
 AddPertToBckgnd (MultiFab& mf_cc_fine,
                  const MultiFab& mf_cc_pert,
                  const Real& ens_pert_amplitude)
 {
+    amrex::ignore_unused(ens_pert_amplitude);
+
     const int ncomp = mf_cc_fine.nComp();
 
     // Optional safety check (recommended)
     AMREX_ALWAYS_ASSERT(mf_cc_pert.nComp() == ncomp);
+    AMREX_ALWAYS_ASSERT(ncomp <= 8);
 
     // Create a GPU-accessible array and copy the host vector into it
-    GpuArray<Real, 8> scale_gpu; // Use the maximum possible ncomp, e.g., 8
+    GpuArray<Real, 8> sigma_gpu; // Use the maximum possible ncomp, e.g., 8
     for (int n = 0; n < ncomp; ++n) {
-        scale_gpu[n] = perturb_scale[n];
+        sigma_gpu[n] = perturb_sigma[n];
     }
+    const Real max_rel = moist_pert_max_rel;
 
     for (MFIter mfi(mf_cc_fine, TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -720,8 +739,16 @@ AddPertToBckgnd (MultiFab& mf_cc_fine,
         amrex::ParallelFor(bx, ncomp,
         [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
         {
-            Real ens_amp = ens_pert_amplitude*scale_gpu[n]*std::abs(bg(i,j,k,n));
-            bg(i,j,k,n) += ens_amp*pert(i,j,k,n);
+            Real sigma = sigma_gpu[n];
+            const bool is_moist = (n >= 5);   // qv, qc, qrain
+            if (is_moist) {
+                sigma = amrex::min(sigma, max_rel*std::abs(bg(i,j,k,n)));
+            }
+            Real val = bg(i,j,k,n) + sigma*pert(i,j,k,n);
+            if (is_moist) {
+                val = amrex::max(val, Real(0.0));
+            }
+            bg(i,j,k,n) = val;
         });
     }
 }

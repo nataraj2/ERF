@@ -234,6 +234,15 @@ void compute_r_vec (const int da_iter,
                     const amrex::MultiFab& d_prime_vec,
                     amrex::Vector<amrex::Real>& r_vec);
 
+// Observation thinning strides (in cells) in x, y, z, read from da.obs_thin_x/y/z
+// (defaults 8, 4, 8). A cell (i,j,k) is assimilated only if i%sx==0 && j%sy==0 && k%sz==0.
+// Stride 1 in every direction means no thinning.
+amrex::IntVect get_obs_thinning ();
+
+// Prints the eigenvalues of the symmetric matrix S = I + Y'^T R^-1 Y'/(N-1)
+// and the implied spread-reduction factors 1/sqrt(lambda)
+void print_S_eigenvalues (const Matrix& S_mat);
+
 void compute_alpha_vec (const int& Nens,
                         const Matrix& S,
                         const amrex::Vector<amrex::Real>& r_vec,

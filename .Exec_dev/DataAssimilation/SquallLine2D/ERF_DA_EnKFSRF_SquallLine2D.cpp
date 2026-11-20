@@ -104,4 +104,16 @@ void compute_R_diag_vals(Vector<Real>& R_diag)
     R_diag[5] = 2.5e-7; // qv
     R_diag[6] = 1e-8; // qc
     R_diag[7] = 1e-8; // qrain
+
+    // Inflate the observation error variance to account for the spatially correlated
+    // error between the (coarse) background and the (fine) observations.
+    // Input: da.R_inflation (default 4.0). R_diag is multiplied by this factor.
+    Real R_inflation = 4.0;
+    ParmParse pp("da");
+    pp.queryAdd("R_inflation", R_inflation);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(R_inflation > 0.0, "da.R_inflation must be > 0");
+
+    for (auto& r : R_diag) { r *= R_inflation; }
+
+    Print() << "compute_R_diag_vals: R inflation factor = " << R_inflation << std::endl;
 }

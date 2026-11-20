@@ -995,6 +995,8 @@ public:
 
     void PerformDataAssimilation (int da_iter);
 
+    void ComputeEnsembleUpdateMean (const int da_iter);
+
     void SetDirsForPlotfilesAndCheckpointsForDA (const int da_iter, const int ens_no);
 
     void GetEnsembleCheckpointName (int da_iter, int ens_no);

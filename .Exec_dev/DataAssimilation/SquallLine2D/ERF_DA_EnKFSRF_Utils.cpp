@@ -243,11 +243,28 @@ compute_d_vec(const MultiFab& mf1,
                        mf1.nGrowVect());
 }
 
+IntVect
+get_obs_thinning ()
+{
+    int sx = 8, sy = 1, sz = 8;
+    ParmParse pp("da");
+    pp.queryAdd("obs_thin_x", sx);
+    pp.queryAdd("obs_thin_y", sy);
+    pp.queryAdd("obs_thin_z", sz);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(sx >= 1 && sy >= 1 && sz >= 1,
+                                     "da.obs_thin_x/y/z must be >= 1");
+    return IntVect(sx, sy, sz);
+}
+
 void
 compute_d_prime_vec(MultiFab& d_prime_vec,
                     const MultiFab& d_vec,
                     const Vector<Real>& R_diag)
 {
+    // Observations at cells not selected by the thinning get zero weight (d' = 0)
+    const IntVect thin = get_obs_thinning();
+    const int sx = thin[0], sy = thin[1], sz = thin[2];
+
     AMREX_ALWAYS_ASSERT(d_vec.nComp() == R_diag.size());
 
     const int ncomp = d_vec.nComp();
@@ -270,7 +287,8 @@ compute_d_prime_vec(MultiFab& d_prime_vec,
         ParallelFor(bx, ncomp,
                             [=] AMREX_GPU_DEVICE (int i, int j, int k, int n)
         {
-            dp_arr(i,j,k,n) = d_arr(i,j,k,n) / R_diag_d_ptr[n];
+            const bool selected = (i % sx == 0) && (j % sy == 0) && (k % sz == 0);
+            dp_arr(i,j,k,n) = selected ? d_arr(i,j,k,n) / R_diag_d_ptr[n] : 0.0;
         });
     }
 }
@@ -315,6 +333,10 @@ Compute_yf_prime_i_T_Rinv_yf_prime_j(const MultiFab& Yi,
 {
     const int ncomp = Yi.nComp();
 
+    // Only the cells selected by the observation thinning contribute
+    const IntVect thin = get_obs_thinning();
+    const int sx = thin[0], sy = thin[1], sz = thin[2];
+
     ReduceOps<ReduceOpSum> reduce_op;
     ReduceData<Real> reduce_data(reduce_op);
 
@@ -336,8 +358,10 @@ Compute_yf_prime_i_T_Rinv_yf_prime_j(const MultiFab& Yi,
         {
             Real local = 0.0;
 
-            for (int n = 0; n < ncomp; ++n) {
-                local += yi(i,j,k,n) * yj(i,j,k,n)/R_diag_d_ptr[n];
+            if ((i % sx == 0) && (j % sy == 0) && (k % sz == 0)) {
+                for (int n = 0; n < ncomp; ++n) {
+                    local += yi(i,j,k,n) * yj(i,j,k,n)/R_diag_d_ptr[n];
+                }
             }
 
             return {local};
@@ -489,6 +513,63 @@ compute_r_vec (const int da_iter,
 }
 
 
+// Eigenvalues of S = I + Y'^T R^-1 Y'/(N-1) (symmetric positive definite, S >= I).
+// T = S^{-1/2} scales the analysis perturbations along eigenvector k by lambda_k^{-1/2},
+// so large eigenvalues mean strong spread collapse. One eigenvalue should be exactly 1
+// (the eigenvector 1/sqrt(N), since S*1 = 1); the other N-1 are >= 1.
+void
+print_S_eigenvalues (const Matrix& S_mat)
+{
+    int n = S_mat.size();   // non-const: LAPACK takes int*
+
+    // Symmetrize (dsyev reads the lower triangle) into a work copy
+    Matrix A(n);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            A(i,j) = 0.5 * (S_mat(i,j) + S_mat(j,i));
+        }
+    }
+
+    std::vector<double> w(n);
+    int lda = n;
+    int info;
+    char jobz = 'N';   // eigenvalues only
+    char uplo = 'L';
+
+    // workspace query
+    int lwork = -1;
+    double work_query;
+    dsyev_(&jobz, &uplo, &n, A.data(), &lda, w.data(), &work_query, &lwork, &info);
+
+    lwork = static_cast<int>(work_query);
+    std::vector<double> work(lwork);
+
+    dsyev_(&jobz, &uplo, &n, A.data(), &lda, w.data(), work.data(), &lwork, &info);
+
+    if (info != 0) {
+        Print() << "print_S_eigenvalues: dsyev failed, info = " << info << std::endl;
+        return;
+    }
+
+    // Eigenvalues are returned in ascending order
+    double trace_minus_I = 0.0;
+    for (int k = 0; k < n; ++k) { trace_minus_I += (w[k] - 1.0); }
+
+    Print() << "---- Eigenvalues of S (N = " << n << ") ----" << std::endl;
+    Print() << std::setprecision(8) << std::scientific;
+    for (int k = 0; k < n; ++k) {
+        Print() << "  lambda[" << k << "] = " << w[k]
+                << "   spread factor 1/sqrt(lambda) = " << 1.0 / std::sqrt(w[k])
+                << std::endl;
+    }
+    Print() << "  min = " << w[0] << ", max = " << w[n-1]
+            << ", trace(S-I) = " << trace_minus_I << std::endl;
+    Print() << "  (expect one eigenvalue = 1, others >= 1; "
+            << "analysis spread along eigenvector k is scaled by 1/sqrt(lambda_k))"
+            << std::endl;
+    Print() << std::defaultfloat;
+}
+
 void
 compute_alpha_vec (const int& Nens,
                    const Matrix& S,
@@ -639,6 +720,47 @@ update_ensemble (const int da_iter,
         T_colvec[i] = T(i,n);
     }
     compute_Xf_prime_times_vector(da_iter, Nens, last_pf_name, varnames, xf_bar, T_colvec, result);
+}
+
+// Averages DA_Cycle_<da_iter>/member_XX/plt_ens_update over all members and writes
+// DA_Cycle_<da_iter>/plt_ens_update_mean. Each plt_ens_update holds X'T[:,n], so the
+// mean over n equals X'(T*1)/N = X'*1/N = 0 (to round-off) for the symmetric square root.
+void
+ERF::ComputeEnsembleUpdateMean (const int da_iter)
+{
+    const int Nens = solverChoice.n_ensemble;
+    const Vector<std::string> varnames = {"density","theta", "x_velocity","y_velocity",
+                                          "z_velocity", "qv", "qc", "qrain"};
+    const int ncomp = varnames.size();
+
+    MultiFab mf_sum;
+
+    for (int n = 0; n < Nens; ++n)
+    {
+        const std::string member_dir = "member_" + amrex::Concatenate("", n, 2);
+        const std::string pf_path    = MakeFullPath(member_dir + "/plt_ens_update", da_iter);
+
+        PlotFileData pf(pf_path);
+        MultiFab mf_n;
+        read_plot_file(pf, varnames, mf_n);
+
+        if (n == 0) {
+            mf_sum.define(mf_n.boxArray(), mf_n.DistributionMap(), ncomp, 0);
+            mf_sum.setVal(0.0);
+        }
+        MultiFab::Add(mf_sum, mf_n, 0, 0, ncomp, 0);
+    }
+
+    mf_sum.mult(1.0 / Real(Nens));
+
+    // Report max |mean update| per variable (should be ~0, round-off level)
+    for (int c = 0; c < ncomp; ++c) {
+        Print() << "ensemble update mean, max |" << varnames[c] << "| = "
+                << mf_sum.norm0(c) << std::endl;
+    }
+
+    const std::string pltname = MakeFullPath("plt_ens_update_mean", da_iter);
+    WriteSingleLevelPlotfile(pltname, mf_sum, varnames, geom[0], 0.0, 0);
 }
 
 void
